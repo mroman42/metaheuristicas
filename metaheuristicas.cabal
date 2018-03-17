@@ -22,9 +22,11 @@ executable metaheuristicas
                        -- accelerate-llvm-ptx,
                        containers,
                        split,
-                       random
+                       random,
+                       normaldistribution
 
   other-modules:       Algorithms
                        
   default-language:    Haskell2010
-  ghc-options:         -Wall
+  ghc-options:         -Wall -O2 -fllvm -fprof-auto
+  
