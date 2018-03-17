@@ -1,0 +1,30 @@
+name:                metaheuristicas
+version:             0.1.0
+synopsis:            Prácticas de metaheurísticas
+license:             GPL-3
+license-file:        LICENSE
+author:              Mario Román (M42)
+cabal-version:       >=1.10
+build-type:          Simple
+
+                                                               
+source-repository head
+  type:           git
+  location:       git://github.com/M42/metaheuristicas.git
+
+executable metaheuristicas
+  hs-source-dirs:      ./source
+  main-is:             Main.hs
+  
+  build-depends:       base,
+                       accelerate,
+                       accelerate-llvm-native,
+                       -- accelerate-llvm-ptx,
+                       containers,
+                       split,
+                       random
+
+  other-modules:       Algorithms
+                       
+  default-language:    Haskell2010
+  ghc-options:         -Wall

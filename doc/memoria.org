@@ -1,0 +1,23 @@
+#+TITLE: Memoria de la práctica
+#+AUTHOR: Mario Román García
+
+# Portada con el número y título de la práctica, el curso académico, el
+# nombre del problema escogido, los algoritmos considerados; el nombre,
+# DNI y dirección e-mail del estudiante, y su grupo y horario de
+# prácticas.
+
+# Índice
+
+* Formulación del problema
+# Máximo 1 página
+
+* Aplicación de algoritmos
+# Máximo 4 páginas
+
+* Pseudocódigo del método de búsqueda
+# No incluir listado total o parcial del código fuente
+
+* Pseudocódigo de los algoritmos de comparación
+* Procedimiento considerado, manual de usuario
+* Experimentos y análisis de resultados
+* Referencias bibliográficas
