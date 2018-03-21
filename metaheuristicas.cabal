@@ -25,7 +25,7 @@ executable metaheuristicas
                        random,
                        normaldistribution
 
-  other-modules:       Algorithms
+  other-modules:       Base
                        
   default-language:    Haskell2010
   ghc-options:         -Wall -O2 -fllvm -fprof-auto
