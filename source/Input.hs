@@ -21,10 +21,7 @@ readArff :: Filename -> IO Problem
 readArff filename = do
   handle <- openFile filename ReadMode
   contents <- tail . tail . lines <$> hGetContents handle
-  -- let secAttrClass = takeWhile (isPrefixOf "@attribute") contents
-  -- let secAttr = init secAttrClass
   let secData = dropWhile (\ s -> isPrefixOf "@" s || s == "") contents
-  -- let attributes = map (reverse . drop (length " numeric") . reverse . drop (length "@attribute")) secAttr
   let rawdata = map (map (check . (id &&& readMaybe)) . splitOn ",") secData :: [[Value]]
   let values = map (init &&& last) rawdata
   return values

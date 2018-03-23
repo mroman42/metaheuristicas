@@ -3,15 +3,21 @@ module Base where
 import Data.List
 import Data.List.Split
 import Data.Ord
-import Control.Arrow
+import Control.Arrow hiding (left, right)
+import Text.PrettyPrint.Boxes
+import Text.Printf
 
 -- Las instancias se clasifican en varias clases. Cada una de ellas
 -- está representada por su vector de valores para cada atributo. Un
 -- problema está dado por un conjunto de instancias clasificadas.
+-- Tanto el Training como el Test son dos problemas.
 type Class = Double
 type Value = Double
 type Instance = ([Value],Class)
 type Problem = [Instance]
+type Training = Problem
+type Test = Problem
+
 
 -- Propiedades de los problemas.
 -- | Número de atributos que tiene un problema.
@@ -29,8 +35,10 @@ type Weight = Double
 type UnWeight = Double
 type Solution = [Weight]
 
--- Una heurística toma un problema y devuelve una solución.
+-- Una heurística toma un problema y devuelve una solución. Un
+-- clasificador toma una instancia y le asigna una clase.
 type Heuristic = Problem -> Solution
+type Classifier = Instance -> Class
 
 
 
@@ -98,8 +106,8 @@ normalizeDataset = normalize
 -- Leave one out. Esta técnica toma una lista y aplica una función de
 -- argumentos "[a]" y "a" a cada elemento de la lista contra todo el
 -- resto de la lista.
-oneOut :: [a] -> ([a] -> a -> b) -> [b]
-oneOut list f = map (uncurry f) (acc list [])
+oneOut :: ([a] -> a -> b) -> [a] -> [b]
+oneOut f list = map (uncurry f) (acc [] list)
   where
     acc :: [a] -> [a] -> [([a],a)]
     acc _ [] = []
@@ -144,9 +152,43 @@ fivesplit a = zipWith (++) chunks1 chunks2
   where
     class1 = filter (\u -> snd u == 1.0) a
     class2 = filter (\u -> snd u == 2.0) a
-    clen = quot (length a) 5 + if rem (length a) 5 == 0 then 0 else 1
-    chunks1 = chunksOf clen class1
-    chunks2 = chunksOf clen class2
+    clen1 = quot (length class1) 5 + if rem (length class1) 5 == 0 then 0 else 1
+    clen2 = quot (length class2) 5 + if rem (length class2) 5 == 0 then 0 else 1    
+    chunks1 = chunksOf clen1 class1
+    chunks2 = chunksOf clen2 class2
+
+-- Devuelve el problema en parejas de Training y Test.
+fiveassignment :: Problem -> [(Training, Test)]
+fiveassignment a = oneOut (\x y -> (concat x,y)) (fivesplit a)
+
+
+data Report = Report
+  { tasaClas :: Double
+  , tasaRed :: Double
+  , aggregate :: Double
+  , time :: Double
+  }
+  deriving (Eq,Show)
+
+mean :: [Double] -> Double
+mean xs = sum xs / genericLength xs
+
+aggregateReport :: [Report] -> Report
+aggregateReport reports = Report
+  (mean $ map tasaClas reports)
+  (mean $ map tasaRed reports)
+  (mean $ map aggregate reports)
+  (sum $  map time reports)
+
+
+-- Devuelve la precisión y simplicidad de una solución dada.
+report :: Solution -> Training -> Test -> Report
+report w training test = Report
+  (precision w training test)
+  (simplicity w)
+  (score w training test)
+  0.0
+
 
 -- Puntuación media de las cinco ejecuciones en el conjunto de datos,
 -- utilizando validación cruzada con cinco particiones.
@@ -158,3 +200,39 @@ fivefold heuristic dataset = (\(x,_,_)->x) $ acc (0,[],datasplit)
     acc :: (Double,[Problem],[Problem]) -> (Double,[Problem],[Problem])
     acc (f,_,[]) = (f,[],[])
     acc (f,l,s:r) = (f + score (heuristic (concat (l++r))) (concat (l++r)) s, s:l, r)
+
+-- Muestra un reporte agregado de la combinación de los reportes obtenidos
+-- haciendo validación cruzada entre 5 particiones.
+reportFiveFold :: (Problem -> Solution) -> Problem -> [Report]
+reportFiveFold h dataset = reports ++ [aggregateReport reports]
+  where
+    reports = map (\(training , test) -> report (h training) training test) (fiveassignment dataset)
+
+
+
+
+
+-- Dibuja las tablas de salida del programa
+drawReport :: Report -> [Box]
+drawReport r = map (text . (++ " & ") . printf "%.5f" . ($ r)) [tasaClas, tasaRed, aggregate, time]
+
+
+-- drawTitles :: [Box]
+-- drawTitles = map (text . (++ ", ")) ["Tasa clas.", "Tasa red.", "Agr.", "T"]
+
+-- drawReport :: Report -> [Box]
+-- drawReport r = map (text . (++ ", ") . printf "%.5f" . ($ r)) [tasaClas, tasaRed, aggregate, time]
+
+-- drawReports :: [Report] -> Box
+-- drawReports l = foldr1 (<>) $ map (foldr1 (//)) $ transpose $ drawTitles : map drawReport l
+
+-- drawCompleteReport :: (Problem -> Solution) -> [Problem] -> Box
+-- drawCompleteReport h a = hcat left $ map (drawReports . reportFiveFold h) a
+
+-- drawFoldsCol :: Box
+-- drawFoldsCol = foldr1 (//) .  map (text . (++"   ")) $
+--   ["","Partición 1", "Partición 2", "Partición 3", "Partición 4", "Partición 5","Media"]
+
+-- printReport :: String -> (Problem -> Solution) -> [Problem] -> IO ()
+-- printReport title h p = printBox $ vcat center1 [text title, drawCompleteReport h p]
+                                                      

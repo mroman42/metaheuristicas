@@ -20,4 +20,12 @@
 * Pseudocódigo de los algoritmos de comparación
 * Procedimiento considerado, manual de usuario
 * Experimentos y análisis de resultados
+
+| 0.54688 | 0.00000 | 0.27344 | 0.00000 |
+| 0.53125 | 0.00000 | 0.26562 | 0.00000 |
+| 0.54688 | 0.00000 | 0.27344 | 0.00000 |
+| 0.48438 | 0.00000 | 0.24219 | 0.00000 | 
+| 0.62500 | 0.00000 | 0.31250 | 0.00000 |
+| 0.54688 | 0.00000 | 0.27344 | 0.00000 |
+
 * Referencias bibliográficas

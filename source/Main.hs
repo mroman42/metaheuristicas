@@ -8,6 +8,9 @@ import Input
 
 
 
+-- knn as an algorithm
+knnTrivial :: Problem -> Solution
+knnTrivial a = replicate (nAttr a) 1
 
 
 -- Greedy: RELIEF
@@ -71,7 +74,7 @@ objective :: Problem -> Solution -> Double
 objective training w = fromIntegral hits / fromIntegral (length training)
   where
     hits :: Int
-    hits = sum $ oneOut training (knnHit w)
+    hits = sum $ oneOut (knnHit w) training
 
 localsearchstep :: (RandomGen g) => g -> Int -> Problem -> Solution -> Maybe Solution
 localsearchstep gen searchBound training w =
@@ -103,13 +106,12 @@ localSearch gen dataset = localsearchMetaheuristic gen (nAttr dataset) dataset
 -- INPUT
 main :: IO ()
 main = do
-  datasetOzone <- readArff fileOzone
-  datasetParkinson <- readArff fileParkinson
-  datasetHeart <- readArff fileHeart
+  datasetOzone <- normalizeDataset <$> readArff fileOzone
+  datasetParkinson <- normalizeDataset <$> readArff fileParkinson
+  datasetHeart <- normalizeDataset <$> readArff fileHeart
 
   g <- getStdGen
-  print $ map (fivefold relief . normalizeDataset) [datasetOzone,datasetParkinson,datasetHeart]
-  print $ map (fivefold (localsearchMetaheuristic g (nAttr datasetOzone)) . normalizeDataset) [datasetOzone, datasetParkinson, datasetHeart]
---  print $ map (fivefold (localsearchMetaheuristic g) . normalizeDataset) [datasetOzone]
+
+  printReport "Knn Ozone" knnTrivial [datasetOzone]
   
   return ()
