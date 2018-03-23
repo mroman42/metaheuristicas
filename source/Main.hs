@@ -1,26 +1,10 @@
--- import Data.Array.Accelerate
-import System.IO
-import Text.Read
 import Data.List
 import Data.Ord
--- import Data.Maybe
-import Data.List.Split
-import Control.Arrow
 import Data.Random.Normal
 import System.Random
 
 import Base
-
-
--- Leave one out
-oneOut :: [a] -> ([a] -> a -> b) -> [b]
-oneOut list f = map (uncurry f) (acc list [])
-  where
-    acc :: [a] -> [a] -> [([a],a)]
-    acc _ [] = []
-    acc l (a:r) = (l ++ r, a) : acc (a:l) r
-
-
+import Input
 
 
 
@@ -112,71 +96,11 @@ localSearch :: (RandomGen g) => g -> Problem -> Solution
 localSearch gen dataset = localsearchMetaheuristic gen (nAttr dataset) dataset
 
 
--- tasa_clas
-validate :: [Weight] -> Problem -> Problem -> Double
-validate w training test = fromIntegral hits / fromIntegral (length test)
-  where
-    hits :: Int
-    hits = sum $ map (knnHit w training) test
-
--- tasa_red
-simplicity :: [Weight] -> Double
-simplicity w = fromIntegral (length (filter (< 0.2) w)) / fromIntegral (length w)
-
-alpha :: Double
-alpha = 0.5
-
-score :: Solution -> Problem -> Problem -> Double
-score w training test = alpha * validate w training test + (1 - alpha) * simplicity w
-
-
--- | Splits a subset into five, roughly equal and balanced subsets.
-fivesplit :: Problem -> [Problem]
-fivesplit a = zipWith (++) chunks1 chunks2
-  where
-    class1 = filter (\u -> snd u == 1.0) a
-    class2 = filter (\u -> snd u == 2.0) a
-    clen = quot (length a) 5 + if rem (length a) 5 == 0 then 0 else 1
-    chunks1 = chunksOf clen class1
-    chunks2 = chunksOf clen class2
-
-
--- | Average of 5 executions of the heuristic on the dataset.
-fivefold :: (Problem -> Solution) -> Problem -> Double
-fivefold heuristic dataset = (\(x,_,_)->x) $ acc (0,[],datasplit)
-  where
-    datasplit = fivesplit dataset
-
-    acc :: (Double,[Problem],[Problem]) -> (Double,[Problem],[Problem])
-    acc (f,_,[]) = (f,[],[])
-    acc (f,l,s:r) = (f + score (heuristic (concat (l++r))) (concat (l++r)) s, s:l, r)
 
 
 
 
 -- INPUT
-type Filename = String
-fileOzone, fileParkinson, fileHeart :: Filename
-fileOzone = "./apc/ozone-320.arff"
-fileParkinson = "./apc/parkinsons.arff"
-fileHeart = "./apc/spectf-heart.arff"
-
-readArff :: Filename -> IO Problem
-readArff filename = do
-  handle <- openFile filename ReadMode
-  contents <- tail . tail . lines <$> hGetContents handle
-  -- let secAttrClass = takeWhile (isPrefixOf "@attribute") contents
-  -- let secAttr = init secAttrClass
-  let secData = dropWhile (\ s -> isPrefixOf "@" s || s == "") contents
-  -- let attributes = map (reverse . drop (length " numeric") . reverse . drop (length "@attribute")) secAttr
-  let rawdata = map (map (check . (id &&& readMaybe)) . splitOn ",") secData :: [[Value]]
-  let values = map (init &&& last) rawdata
-  return values
-    where
-      check :: (String , Maybe Double) -> Double
-      check (_,Just f) = f
-      check (x,Nothing) = error ("Error reading ->" ++ x ++ "<-")
-
 main :: IO ()
 main = do
   datasetOzone <- readArff fileOzone
