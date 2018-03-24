@@ -52,49 +52,54 @@ bin/scorer: src/Scorer.hs src/Base.hs src/Input.hs
 
 
 
-# One-nn es el algoritmo trivial. Para un algoritmo se crean:
-#  - soluciones
-#  - reports
+# Describimos todo lo que queremos hacer para cada uno de los algoritmos
+# que evaluamos de forma paramétrica en el algoritmo. Toda la siguiente
+# sección es paramétrica y se repetirá para cada uno de los algoritmos.
+# Se define
+#  - Construcción del ejecutable.
+#  - Cálculo de las soluciones.
+#  - Cálculo de la bondad de las soluciones.
+#  - Presentación de un report final.
 define VALIDATION =
-bin/Onenn: src/Onenn.hs src/Base.hs src/Input.hs
-	$(STK) $^ -o $@ -main-is Onenn
+bin/$(1): src/$(1).hs src/Base.hs src/Input.hs
+	$$(STK) $$^ -o $$@ -main-is $(1)
 
-%.arff.Onenn.sol1: bin/Onenn %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part5
-	cat $(filter-out $<,$^) | bin/Onenn > $@
-%.arff.Onenn.sol2: bin/Onenn %.arff.part1 %.arff.part3 %.arff.part4 %.arff.part5
-	cat $(filter-out $<,$^) | bin/Onenn > $@
-%.arff.Onenn.sol3: bin/Onenn %.arff.part2 %.arff.part1 %.arff.part4 %.arff.part5
-	cat $(filter-out $<,$^) | bin/Onenn > $@
-%.arff.Onenn.sol4: bin/Onenn %.arff.part2 %.arff.part3 %.arff.part1 %.arff.part5
-	cat $(filter-out $<,$^) | bin/Onenn > $@
-%.arff.Onenn.sol5: bin/Onenn %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part1
-	cat $(filter-out $<,$^) | bin/Onenn > $@
+%.arff.$(1).sol1: bin/$(1) %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part5
+	cat $$(filter-out $$<,$$^) | bin/$(1) > $$@
+%.arff.$(1).sol2: bin/$(1) %.arff.part1 %.arff.part3 %.arff.part4 %.arff.part5
+	cat $$(filter-out $$<,$$^) | bin/$(1) > $$@
+%.arff.$(1).sol3: bin/$(1) %.arff.part2 %.arff.part1 %.arff.part4 %.arff.part5
+	cat $$(filter-out $$<,$$^) | bin/$(1) > $$@
+%.arff.$(1).sol4: bin/$(1) %.arff.part2 %.arff.part3 %.arff.part1 %.arff.part5
+	cat $$(filter-out $$<,$$^) | bin/$(1) > $$@
+%.arff.$(1).sol5: bin/$(1) %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part1
+	cat $$(filter-out $$<,$$^) | bin/$(1) > $$@
 
-Onenn_sols1: $(addsuffix .arff.Onenn.sol1, $(basename $(wildcard data/*.arff)))
-Onenn_sols2: $(addsuffix .arff.Onenn.sol2, $(basename $(wildcard data/*.arff)))
-Onenn_sols3: $(addsuffix .arff.Onenn.sol3, $(basename $(wildcard data/*.arff)))
-Onenn_sols4: $(addsuffix .arff.Onenn.sol4, $(basename $(wildcard data/*.arff)))
-Onenn_sols5: $(addsuffix .arff.Onenn.sol5, $(basename $(wildcard data/*.arff)))
-Onenn_sols: Onenn_sols1 Onenn_sols2 Onenn_sols3 Onenn_sols4 Onenn_sols5
+$(1)_sols1: $$(addsuffix .arff.$(1).sol1, $$(basename $$(wildcard data/*.arff)))
+$(1)_sols2: $$(addsuffix .arff.$(1).sol2, $$(basename $$(wildcard data/*.arff)))
+$(1)_sols3: $$(addsuffix .arff.$(1).sol3, $$(basename $$(wildcard data/*.arff)))
+$(1)_sols4: $$(addsuffix .arff.$(1).sol4, $$(basename $$(wildcard data/*.arff)))
+$(1)_sols5: $$(addsuffix .arff.$(1).sol5, $$(basename $$(wildcard data/*.arff)))
+$(1)_sols: $(1)_sols1 $(1)_sols2 $(1)_sols3 $(1)_sols4 $(1)_sols5
 
-%.arff.Onenn.report1: bin/scorer %.arff.Onenn.sol1 %.arff.part1 %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part5
-	cat $(filter-out $(wordlist 1, 3,$^),$^) | $< $(word 2,$^) $(word 3,$^) > $@
-%.arff.Onenn.report2: bin/scorer %.arff.Onenn.sol2 %.arff.part2 %.arff.part1 %.arff.part3 %.arff.part4 %.arff.part5
-	cat $(filter-out $(wordlist 1, 3,$^),$^) | $< $(word 2,$^) $(word 3,$^) > $@
-%.arff.Onenn.report3: bin/scorer %.arff.Onenn.sol3 %.arff.part3 %.arff.part2 %.arff.part1 %.arff.part4 %.arff.part5
-	cat $(filter-out $(wordlist 1, 3,$^),$^) | $< $(word 2,$^) $(word 3,$^) > $@
-%.arff.Onenn.report4: bin/scorer %.arff.Onenn.sol4 %.arff.part4 %.arff.part2 %.arff.part3 %.arff.part1 %.arff.part5
-	cat $(filter-out $(wordlist 1, 3,$^),$^) | $< $(word 2,$^) $(word 3,$^) > $@
-%.arff.Onenn.report5: bin/scorer %.arff.Onenn.sol5 %.arff.part5 %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part1
-	cat $(filter-out $(wordlist 1, 3,$^),$^) | $< $(word 2,$^) $(word 3,$^) > $@
+%.arff.$(1).report1: bin/scorer %.arff.$(1).sol1 %.arff.part1 %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part5
+	cat $$(filter-out $$(wordlist 1, 3,$$^),$$^) | $$< $$(word 2,$$^) $$(word 3,$$^) > $$@
+%.arff.$(1).report2: bin/scorer %.arff.$(1).sol2 %.arff.part2 %.arff.part1 %.arff.part3 %.arff.part4 %.arff.part5
+	cat $$(filter-out $$(wordlist 1, 3,$$^),$$^) | $$< $$(word 2,$$^) $$(word 3,$$^) > $$@
+%.arff.$(1).report3: bin/scorer %.arff.$(1).sol3 %.arff.part3 %.arff.part2 %.arff.part1 %.arff.part4 %.arff.part5
+	cat $$(filter-out $$(wordlist 1, 3,$$^),$$^) | $$< $$(word 2,$$^) $$(word 3,$$^) > $$@
+%.arff.$(1).report4: bin/scorer %.arff.$(1).sol4 %.arff.part4 %.arff.part2 %.arff.part3 %.arff.part1 %.arff.part5
+	cat $$(filter-out $$(wordlist 1, 3,$$^),$$^) | $$< $$(word 2,$$^) $$(word 3,$$^) > $$@
+%.arff.$(1).report5: bin/scorer %.arff.$(1).sol5 %.arff.part5 %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part1
+	cat $$(filter-out $$(wordlist 1, 3,$$^),$$^) | $$< $$(word 2,$$^) $$(word 3,$$^) > $$@
 
-%.arff.Onenn.report: %.arff.Onenn.report1 %.arff.Onenn.report2 %.arff.Onenn.report3 %.arff.Onenn.report4 %.arff.Onenn.report5
-	cat $^ > $@
+%.arff.$(1).report: %.arff.$(1).report1 %.arff.$(1).report2 %.arff.$(1).report3 %.arff.$(1).report4 %.arff.$(1).report5
+	cat $$^ > $$@
 
-Onenn_reports: $(addsuffix .arff.Onenn.report, $(basename $(wildcard data/*.arff)))
+$(1)_reports: $$(addsuffix .arff.$(1).report, $$(basename $$(wildcard data/*.arff)))
 endef
 
-$(foreach i,1,$(eval $(call VALIDATION,$(i))))
+$(foreach i,Onenn,$(eval $(call VALIDATION,$(i))))
 
 
 
