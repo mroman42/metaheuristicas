@@ -55,6 +55,7 @@ bin/scorer: src/Scorer.hs src/Base.hs src/Input.hs
 # One-nn es el algoritmo trivial. Para un algoritmo se crean:
 #  - soluciones
 #  - reports
+define VALIDATION =
 bin/Onenn: src/Onenn.hs src/Base.hs src/Input.hs
 	$(STK) $^ -o $@ -main-is Onenn
 
@@ -91,7 +92,9 @@ Onenn_sols: Onenn_sols1 Onenn_sols2 Onenn_sols3 Onenn_sols4 Onenn_sols5
 	cat $^ > $@
 
 Onenn_reports: $(addsuffix .arff.Onenn.report, $(basename $(wildcard data/*.arff)))
+endef
 
+$(foreach i,1,$(eval $(call VALIDATION,$(i))))
 
 
 
@@ -108,7 +111,8 @@ clean-executables:
 	rm -rf bin/*
 clean: clean-parts clean-sols clean-executables
 
-executables: bin/fivefold bin/Onenn bin/scorer
+executables: bin/fivefold bin/scorer bin/Onenn
+
 
 .PHONY:\
 clean-parts clean-sols\
