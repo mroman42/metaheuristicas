@@ -4,7 +4,6 @@ import Data.List
 import Data.List.Split
 import Data.Ord
 import Control.Arrow hiding (left, right)
-import Text.PrettyPrint.Boxes
 import Text.Printf
 
 -- Las instancias se clasifican en varias clases. Cada una de ellas
@@ -178,7 +177,7 @@ aggregateReport reports = Report
   (mean $ map tasaClas reports)
   (mean $ map tasaRed reports)
   (mean $ map aggregate reports)
-  (sum $  map time reports)
+  (sum  $ map time reports)
 
 
 -- Devuelve la precisión y simplicidad de una solución dada.
@@ -213,26 +212,14 @@ reportFiveFold h dataset = reports ++ [aggregateReport reports]
 
 
 -- Dibuja las tablas de salida del programa
-drawReport :: Report -> [Box]
-drawReport r = map (text . (++ " & ") . printf "%.5f" . ($ r)) [tasaClas, tasaRed, aggregate, time]
+drawReport :: Report -> String
+drawReport r = intercalate "," $ map (printf "%.5f" . ($ r)) [tasaClas, tasaRed, aggregate, time]
 
+drawReports :: [Report] -> String
+drawReports l = unlines $ map drawReport l
 
--- drawTitles :: [Box]
--- drawTitles = map (text . (++ ", ")) ["Tasa clas.", "Tasa red.", "Agr.", "T"]
+drawCompleteReport :: (Problem -> Solution) -> Problem -> String
+drawCompleteReport h a = drawReports $ reportFiveFold h a
 
--- drawReport :: Report -> [Box]
--- drawReport r = map (text . (++ ", ") . printf "%.5f" . ($ r)) [tasaClas, tasaRed, aggregate, time]
-
--- drawReports :: [Report] -> Box
--- drawReports l = foldr1 (<>) $ map (foldr1 (//)) $ transpose $ drawTitles : map drawReport l
-
--- drawCompleteReport :: (Problem -> Solution) -> [Problem] -> Box
--- drawCompleteReport h a = hcat left $ map (drawReports . reportFiveFold h) a
-
--- drawFoldsCol :: Box
--- drawFoldsCol = foldr1 (//) .  map (text . (++"   ")) $
---   ["","Partición 1", "Partición 2", "Partición 3", "Partición 4", "Partición 5","Media"]
-
--- printReport :: String -> (Problem -> Solution) -> [Problem] -> IO ()
--- printReport title h p = printBox $ vcat center1 [text title, drawCompleteReport h p]
-                                                      
+printReport :: (Problem -> Solution) -> Problem -> IO ()
+printReport h p = putStr $ drawCompleteReport h p

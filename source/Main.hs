@@ -2,15 +2,17 @@ import Data.List
 import Data.Ord
 import Data.Random.Normal
 import System.Random
+import Options hiding (defaultOptions)
+
 
 import Base
 import Input
 
 
-
 -- knn as an algorithm
 knnTrivial :: Problem -> Solution
 knnTrivial a = replicate (nAttr a) 1
+
 
 
 -- Greedy: RELIEF
@@ -100,18 +102,50 @@ localSearch gen dataset = localsearchMetaheuristic gen (nAttr dataset) dataset
 
 
 
+data MainFlags = MainFlags
+  { flagSeed :: Int
+  , flagKnn :: Bool
+  , flagRelief :: Bool
+  , flagLocalSearch :: Bool
+  }
 
+instance Options MainFlags where
+  -- Definición de las distintas flags que puede tomar el programa
+  -- como entrada.
+  defineOptions = pure MainFlags
+    <*> simpleOption "seed"    1     "Semilla de generación aleatoria"
+    <*> simpleOption "1nn"     False "1-knn con distancia euclídea"
+    <*> simpleOption "relief"  False "Algoritmo RELIEF"
+    <*> simpleOption "bl"      False "Búsqueda local"
 
 
 -- INPUT
 main :: IO ()
-main = do
-  datasetOzone <- normalizeDataset <$> readArff fileOzone
-  datasetParkinson <- normalizeDataset <$> readArff fileParkinson
-  datasetHeart <- normalizeDataset <$> readArff fileHeart
+main = runCommand $ \opts args ->
+  case args of
+    [filename] -> do
+      dataset <- normalizeDataset <$> readArff filename
+      let g = mkStdGen (flagSeed opts)
+      let algorithm
+            | flagKnn opts = knnTrivial
+            | flagRelief opts = relief
+            | flagLocalSearch opts = localSearch g 
+            | otherwise = knnTrivial
+      let algorithmName
+            | flagKnn opts = "1NN con distancia euclídea"
+            | flagRelief opts = "el algoritmo RELIEF"
+            | flagLocalSearch opts = "búsqueda local"
+            | otherwise = "1NN con distancia euclídea"
+      let algorithmAbrv
+            | flagKnn opts = "1nn"
+            | flagRelief opts = "relief"
+            | flagLocalSearch opts = "bl"
+            | otherwise = "1nn"           
 
-  g <- getStdGen
+      putStrLn $ "Calcula " ++ algorithmName ++ " sobre " ++ filename ++ "..."
+      printReport algorithm dataset
+      putStrLn $ "Guarda las soluciones en " ++ filename ++ "." ++ algorithmAbrv ++ ".out"
+      return ()
 
-  printReport "Knn Ozone" knnTrivial [datasetOzone]
+    _ -> putStrLn "El programa debe tomar como argumento un archivo"
   
-  return ()

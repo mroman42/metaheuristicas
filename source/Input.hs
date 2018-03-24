@@ -11,9 +11,9 @@ import Base
 -- Nombres de archivo que usará como entrada.
 type Filename = String
 fileOzone, fileParkinson, fileHeart :: Filename
-fileOzone = "./apc/ozone-320.arff"
-fileParkinson = "./apc/parkinsons.arff"
-fileHeart = "./apc/spectf-heart.arff"
+fileOzone = "./bin/ozone-320.arff"
+fileParkinson = "./bin/parkinsons.arff"
+fileHeart = "./bin/spectf-heart.arff"
 
 
 -- Lee un problema desde un archivo.
