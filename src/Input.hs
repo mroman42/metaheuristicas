@@ -55,6 +55,3 @@ readSolutionFile s = (check . (id &&& readMaybe) . init . drop 7 . head . lines 
       check (_,Just f) = f
       check (x,Nothing) = error ("Error reading ->" ++ x ++ "<-")
                      
-
-showReport :: Report -> String
-showReport r = intercalate "," $ map (printf "%.3f") [tasaClas r, tasaRed r, aggregate r, time r]

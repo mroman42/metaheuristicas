@@ -6,8 +6,7 @@ import Data.Ord
 import Base
 import TemplateMain
 
-zeroes :: Problem -> Solution
-zeroes p = replicate (nAttr p) 0
+
 
 -- Filtra a los que son de la misma o distinta clase.
 ofClass :: Bool -> Class -> Problem -> Problem
@@ -44,8 +43,8 @@ relief _ p = normalizeWeights $ foldr (acc p) (zeroes p) p
         dists_friend = map abs (zipWith (-) (fst a) (fst (closestFriend a q)))
         dists_enemy  = map abs (zipWith (-) (fst a) (fst (closestEnemy  a q)))
 
-
-
+    zeroes :: Problem -> Solution
+    zeroes q = replicate (nAttr q) 0
 
 main :: IO ()
 main = templateMain relief

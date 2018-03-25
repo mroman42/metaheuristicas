@@ -5,23 +5,20 @@ import Data.Random.Normal
 import System.Random
 import System.Random.Shuffle
 
--- import Data.Sequence
-
 import TemplateMain
 import Base
 import LeaveOneOut
+
+
 
 -- Determina la desviación estándar de las distribuciones normales.
 type Sigma = Double
 sigma :: Sigma
 sigma = 0.3
 
-
-
 -- Trunca los pesos al intervalo [0,1].
 truncateWeights :: [UnWeight] -> [Weight]
 truncateWeights = map (\x -> if x > 1 then 1 else if x < 0 then 0 else x)
-
 
 
 -- Aplica una mutación epsilon en el índice dado.

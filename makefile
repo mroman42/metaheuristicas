@@ -29,7 +29,7 @@ EXEFLG=+RTS -N8
 # 5-fold. Crea el programa que parte un conjunto de datos en cinco
 # conjuntos iguales.  Cada vez que varíe el programa o el conjunto de
 # datos se deberán volver a crear.
-bin/fivefold: src/Fivefold.hs src/Base.hs src/Input.hs
+bin/fivefold: src/Fivefold.hs src/Input.hs
 	$(STK) $< -o $@ -main-is Fivefold
 
 data/%.arff.part1: data/%.arff bin/fivefold

@@ -1,10 +1,8 @@
 module Base where
 
 import Data.List
-import Data.List.Split
 import Data.Ord
 import Control.Arrow hiding (left, right)
-import Text.Printf
 
 -- Las instancias se clasifican en varias clases. Cada una de ellas
 -- está representada por su vector de valores para cada atributo. Un
@@ -47,29 +45,29 @@ type Seed = Int
 -- Mide la distancia euclídea con pesos entre dos instancias.
 -- Los pesos menores que 0.2 se descartan automáticamente.
 -- Nótese que esta es la distancia al cuadrado.
-dist :: Solution -> Instance -> Instance -> Distance
-dist v x y = dist' v (fst x) (fst y)
+distSqrd :: Solution -> Instance -> Instance -> Distance
+distSqrd v x y = distSqrd' v (fst x) (fst y)
   where
-    dist' :: [Weight] -> [Value] -> [Value] -> Distance
-    dist' w a b = sum $ zipWith (*) w' $ map (** 2.0) (zipWith (-) a b)
+    distSqrd' :: [Weight] -> [Value] -> [Value] -> Distance
+    distSqrd' w a b = sum $ zipWith (*) w' $ map (** 2.0) (zipWith (-) a b)
       where
         w' :: [Weight]
         w' = map (\z -> if z < 0.2 then 0 else z) w    
 
 -- Nótese que esta es la distancia al cuadrado. (!)
-distEuclid :: Instance -> Instance -> Distance
-distEuclid (x,_) (y,_) = sum $ map (** 2.0) (zipWith (-) x y)
+distSqrdEuclid :: Instance -> Instance -> Distance
+distSqrdEuclid (x,_) (y,_) = sum $ map (** 2.0) (zipWith (-) x y)
 
 
 -- Implementación del clasificador 1-KNN. Un clasificador toma un
 -- problema y una instancia y nos devuelve si es de la clase correcta.
--- Podemos medirlo directamente en booleanos o usando enteros que
+  -- Podemos medirlo directamente en booleanos o usando enteros que
 -- representen a los booleanos.
 knn :: Solution -> (Problem -> Instance -> Bool)
 knn w ins a = uncurry (==) ((knn' ins &&& snd) a)
   where
     knn' :: Problem -> Instance -> Class
-    knn' j b = snd $ minimumBy (comparing fst) $ map (dist w b &&& snd) j
+    knn' j b = snd $ minimumBy (comparing fst) $ map (distSqrd w b &&& snd) j
 
 hit :: Bool -> Int
 hit True = 1
@@ -101,111 +99,3 @@ normalizeDataset = normalize
         maxvector = foldr1 (zipWith max) a
         diffvector :: [Value]
         diffvector = zipWith (-) maxvector minvector
-
-
-
--- Leave one out. Esta técnica toma una lista y aplica una función de
--- argumentos "[a]" y "a" a cada elemento de la lista contra todo el
--- resto de la lista.
-oneOut :: ([a] -> a -> b) -> [a] -> [b]
-oneOut f list = map (uncurry f) (acc [] list)
-  where
-    acc :: [a] -> [a] -> [([a],a)]
-    acc _ [] = []
-    acc l (a:r) = (l ++ r, a) : acc (a:l) r
-
-
-
-
-
--- Mide la precisión de una solución bajo un conjunto de Training y un
--- conjunto de Test. Implementa la tasa_clas que se define en el guion
--- de la práctica.
-precision :: Solution -> Problem -> Problem -> Double
-precision w training test = fromIntegral hits / fromIntegral (length test)
-  where
-    hits :: Int
-    hits = sum $ map (knnHit w' training) test
-    w' = map (\x -> if x < 0.2 then 0 else x) w
-
-
--- Mide la simplicidad de una solución, implementa la "tasa_red" definida
--- en el guion de la práctica. Para ello comprueba cuantos pesos quedan por
--- debajo de 0.2.
-simplicity :: Solution -> Double
-simplicity w = fromIntegral (length (filter (< 0.2) w)) / fromIntegral (length w)
-
--- Mide la puntuación que obtiene una clasificación, combinando su precisión
--- y su simplicidad.
-score :: Solution -> Problem -> Problem -> Double
-score w training test = alpha * precision w' training test + (1 - alpha) * simplicity w
-  where
-    alpha :: Double
-    alpha = 0.5
-    w' = map (\x -> if x < 0.2 then 0 else x) w
-
-
-
--- Parte un problema en cinco trozos aproximadamente iguales
--- (diferirán a lo sumo en un elemento) y aproximadamente balanceados
--- de la misma forma que lo están en el conjunto original.
-fivesplit :: Problem -> [Problem]
-fivesplit a = zipWith (++) chunks1 chunks2
-  where
-    class1 = filter (\u -> snd u == 1.0) a
-    class2 = filter (\u -> snd u == 2.0) a
-    clen1 = quot (length class1) 5 + if rem (length class1) 5 == 0 then 0 else 1
-    clen2 = quot (length class2) 5 + if rem (length class2) 5 == 0 then 0 else 1    
-    chunks1 = chunksOf clen1 class1
-    chunks2 = chunksOf clen2 class2
-
--- Devuelve el problema en parejas de Training y Test.
-fiveassignment :: Problem -> [(Training, Test)]
-fiveassignment a = oneOut (\x y -> (concat x,y)) (fivesplit a)
-
-
-data Report = Report
-  { tasaClas :: Double
-  , tasaRed :: Double
-  , aggregate :: Double
-  , time :: Double
-  }
-  deriving (Eq,Show)
-
-mean :: [Double] -> Double
-mean xs = sum xs / genericLength xs
-
-aggregateReport :: [Report] -> Report
-aggregateReport reports = Report
-  (mean $ map tasaClas reports)
-  (mean $ map tasaRed reports)
-  (mean $ map aggregate reports)
-  (sum  $ map time reports)
-
-
--- Devuelve la precisión y simplicidad de una solución dada.
-report :: Solution -> Training -> Test -> Time -> Report
-report w training test = Report
-  (precision w training test)
-  (simplicity w)
-  (score w training test)
-
-
--- Puntuación media de las cinco ejecuciones en el conjunto de datos,
--- utilizando validación cruzada con cinco particiones.
-fivefold :: (Problem -> Solution) -> Problem -> Double
-fivefold heuristic dataset = (\(x,_,_)->x) $ acc (0,[],datasplit)
-  where
-    datasplit = fivesplit dataset
-
-    acc :: (Double,[Problem],[Problem]) -> (Double,[Problem],[Problem])
-    acc (f,_,[]) = (f,[],[])
-    acc (f,l,s:r) = (f + score (heuristic (concat (l++r))) (concat (l++r)) s, s:l, r)
-
-
--- Dibuja las tablas de salida del programa
-drawReport :: Report -> String
-drawReport r = intercalate "," $ map (printf "%.5f" . ($ r)) [tasaClas, tasaRed, aggregate, time]
-
-drawReports :: [Report] -> String
-drawReports l = unlines $ map drawReport l

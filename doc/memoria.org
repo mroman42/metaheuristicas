@@ -27,7 +27,7 @@ distancias. En nuestro caso tomamos $\alpha = 0.5$.
 
 * Aplicación de algoritmos
 # Máximo 4 páginas
-Se define la *distancia con epsos* $\left\{ w_i \right\}$ entre dos vectores $a_{i}$ y $b_i$
+Se define la *distancia con pesos* $\left\{ w_i \right\}$ entre dos vectores $a_{i}$ y $b_i$
 como
 \[
 \|a_i - b_i\| = \sum_{i=0}^n w_i(a_i - b_i)^2.
