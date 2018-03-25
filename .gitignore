@@ -3,3 +3,6 @@
 *.report?
 *.part?
 bin/*
+/doc/ltximg/*
+*.bbl
+*.tex

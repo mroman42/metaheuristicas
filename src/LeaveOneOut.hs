@@ -1,68 +1,53 @@
+{-# LANGUAGE BangPatterns #-}
 module LeaveOneOut where
 
--- import Control.Arrow
-import Data.Ord
-import Data.List
--- import Data.Array.Accelerate
+
+import Base (Problem, Solution, Instance)
+
+import qualified Data.Vector as V
+import qualified Data.Vector.Unboxed as UV
+import Data.Vector.Strategies
 
 
-import Base (Problem, Solution, Instance, Distance, Value, Weight)
 
--- TODO: LeaveOneOut
 objective :: Problem -> Solution -> Double
-objective training w = fromIntegral (knn' w training) / fromIntegral (length training)
+objective = objectiveVector
 
-hit :: Bool -> Int
-hit True = 1
-hit False = 0
 
-dist :: Solution -> Instance -> Instance -> Distance
-dist v x y = dist' v (fst x) (fst y)
+-- http://lpaste.net/105456 
+objectiveVector :: Problem -> Solution -> Double 
+objectiveVector p s = aggregate (fromProblem p) (fromSolution s)
   where
-    dist' :: [Weight] -> [Value] -> [Value] -> Distance
-    dist' w a b = sum $ zipWith (*) w' $ map (** 2.0) (zipWith (-) a b)
-      where
-        w' :: [Weight]
-        w' = map (\z -> if z < 0.2 then 0 else z) w
+    fromProblem :: Problem -> V.Vector LabelPoint
+    fromProblem prob = V.fromList $ map fromInstance prob
+    fromInstance :: Instance -> LabelPoint
+    fromInstance (q,cls) = LabelPoint (round cls) (UV.fromList q)
+    fromSolution :: Solution -> UV.Vector Double
+    fromSolution = UV.fromList
 
-knn' :: Solution -> Problem -> Int
-knn' w p = sum
-  $ map (hit . snd . minimumBy (comparing fst)
-    . \(j,a) -> map (\(k,b) -> if j == k then (infinity,snd a == snd b) else (dist w a b,snd a == snd b)) p') p'
+type Point = UV.Vector Double
+data LabelPoint = LabelPoint {label :: !Int, point :: !Point}
+
+-- TODO: Truncar los pesos
+classify :: V.Vector LabelPoint -> UV.Vector Double -> Point -> Int
+classify !training !weights !points = label mini
   where
-    p' :: [(Int, Instance)]
-    p' = zip ([1..] :: [Int]) p
+    distsqrd = UV.sum . UV.zipWith (****) weights . UV.map (^2) . UV.zipWith (-) points
+    mini = training V.! V.minIndex (V.map (discardZeroes . distsqrd . point) training)
+    -- Leave one out
+    discardZeroes z = if z == 0 then 1/0 else z
+    -- Multiplicación truncada de los pesos
+    (****) a b = if a < 0.2 then 0 else a * b
     
-    infinity :: Double
-    infinity = 1.0/0.0
+validate :: V.Vector LabelPoint -> UV.Vector Double -> Double
+validate !trainingSet !weights = correct
+  where
+    isCorrect (LabelPoint l p) = fromEnum $ classify trainingSet weights p == l
+    numCorrect = V.sum (V.map isCorrect trainingSet `using` parVector 1)
+    correct = fromIntegral numCorrect / fromIntegral (V.length trainingSet) 
 
+simplicity :: UV.Vector Double -> Double
+simplicity !weights = UV.sum $ UV.map (\w -> if w < 0.2 then 1 else 0) weights
 
--- oneOut :: ([a] -> a -> b) -> [a] -> [b]
--- oneOut f list = map (uncurry f) (acc [] list)
---   where
---     acc :: [a] -> [a] -> [([a],a)]
---     acc _ [] = []
---     acc l (a:r) = (l ++ r, a) : acc (a:l) r    
-
--- knn :: Solution -> (Problem -> Instance -> Bool)
--- knn w ins a = uncurry (==) ((knn' ins &&& snd) a)
---   where
---     knn' :: Problem -> Instance -> Class
---     knn' j b = snd $ minimumBy (comparing fst) $ map (dist w b &&& snd) j
-
--- Función objetivo de un problema. Devuelve el agregado de precisión
--- y simplicidad de la solución, habiendo comprobado la precisión
--- sobre su propio conjunto de entrenamiento dejando a uno de los
--- elementos del conjunto fuera.
--- objective :: Problem -> Solution -> Double
--- objective p w = _
-
--- knn :: Solution -> (Problem -> Instance -> Bool)
--- knn w ins a = uncurry (==) ((knn' ins &&& snd) a)
---   where
---     knn' :: Problem -> Instance -> Class
---     knn' j b = snd $ minimumBy (comparing fst) $ map (dist w b &&& snd) j
-
-
--- knnHit :: Solution -> (Problem -> Instance -> Int)
--- knnHit w i = hit . knn w i
+aggregate :: V.Vector LabelPoint -> UV.Vector Double -> Double
+aggregate !trainingSet !weights = validate trainingSet weights + simplicity weights

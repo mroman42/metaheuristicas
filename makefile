@@ -6,6 +6,7 @@ SEED=42
 # COMPILACIÓN
 # Usará la herramienta stack para compilar con Haskell.
 ST=stack exec\
+--package vector-strategies \
 --package split \
 --package options \
 --package random \
@@ -15,12 +16,13 @@ ST=stack exec\
 
 # Stack proporciona un compilador y un intérprete con las librerías
 # solicitadas. El intérprete carga además todo el código fuente.
-STK=$(ST) -- ghc -O2 -fllvm -isrc -odir obj -hidir obj
+STK=$(ST) -- ghc -O2 -fforce-recomp -fllvm -threaded -isrc -odir obj -hidir obj
 STKGHCI=$(ST) -- ghci -isrc -odir obj -hidir obj src/*
 # Proporciona un intérprete con el código cargado al ejecutar 'make ghci'
 ghci:
 	$(STKGHCI)
 
+EXEFLG=+RTS -N8
 
 
 
@@ -74,15 +76,15 @@ bin/LocalSearch: src/LocalSearch.hs src/Base.hs src/Input.hs src/TemplateMain.hs
 #  - Presentación de un report final.
 define VALIDATION =
 %.arff.$(1).sol1: bin/$(1) %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part5
-	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) $$(EXEFLG) > $$@
 %.arff.$(1).sol2: bin/$(1) %.arff.part1 %.arff.part3 %.arff.part4 %.arff.part5
-	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) $$(EXEFLG) > $$@
 %.arff.$(1).sol3: bin/$(1) %.arff.part2 %.arff.part1 %.arff.part4 %.arff.part5
-	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) $$(EXEFLG) > $$@
 %.arff.$(1).sol4: bin/$(1) %.arff.part2 %.arff.part3 %.arff.part1 %.arff.part5
-	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) $$(EXEFLG) > $$@
 %.arff.$(1).sol5: bin/$(1) %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part1
-	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) $$(EXEFLG) > $$@
 
 $(1)_sols1: $$(addsuffix .arff.$(1).sol1, $$(basename $$(wildcard data/*.arff)))
 $(1)_sols2: $$(addsuffix .arff.$(1).sol2, $$(basename $$(wildcard data/*.arff)))

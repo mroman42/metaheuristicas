@@ -125,7 +125,8 @@ precision :: Solution -> Problem -> Problem -> Double
 precision w training test = fromIntegral hits / fromIntegral (length test)
   where
     hits :: Int
-    hits = sum $ map (knnHit w training) test
+    hits = sum $ map (knnHit w' training) test
+    w' = map (\x -> if x < 0.2 then 0 else x) w
 
 
 -- Mide la simplicidad de una solución, implementa la "tasa_red" definida
@@ -137,11 +138,11 @@ simplicity w = fromIntegral (length (filter (< 0.2) w)) / fromIntegral (length w
 -- Mide la puntuación que obtiene una clasificación, combinando su precisión
 -- y su simplicidad.
 score :: Solution -> Problem -> Problem -> Double
-score w training test = alpha * precision w training test + (1 - alpha) * simplicity w
+score w training test = alpha * precision w' training test + (1 - alpha) * simplicity w
   where
     alpha :: Double
     alpha = 0.5
-
+    w' = map (\x -> if x < 0.2 then 0 else x) w
 
 
 
@@ -201,16 +202,6 @@ fivefold heuristic dataset = (\(x,_,_)->x) $ acc (0,[],datasplit)
     acc (f,_,[]) = (f,[],[])
     acc (f,l,s:r) = (f + score (heuristic (concat (l++r))) (concat (l++r)) s, s:l, r)
 
--- Muestra un reporte agregado de la combinación de los reportes obtenidos
--- haciendo validación cruzada entre 5 particiones.
--- reportFiveFold :: (Problem -> Solution) -> Problem -> [Report]
--- reportFiveFold h dataset = reports ++ [aggregateReport reports]
---   where
---     reports = map (\(training , test) -> report (h training) training test) (fiveassignment dataset)
-
-
-
-
 
 -- Dibuja las tablas de salida del programa
 drawReport :: Report -> String
@@ -218,9 +209,3 @@ drawReport r = intercalate "," $ map (printf "%.5f" . ($ r)) [tasaClas, tasaRed,
 
 drawReports :: [Report] -> String
 drawReports l = unlines $ map drawReport l
-
--- drawCompleteReport :: (Problem -> Solution) -> Problem -> String
--- drawCompleteReport h a = drawReports $ reportFiveFold h a
-
--- printReport :: (Problem -> Solution) -> Problem -> IO ()
--- printReport h p = putStr $ drawCompleteReport h p

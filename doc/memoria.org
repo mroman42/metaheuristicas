@@ -1,4 +1,5 @@
-#+TITLE: Memoria de la práctica
+#+TITLE: Práctica 1.b
+#+SUBTITLE: Técnicas de búsqueda local y algoritmos greedy para el problema del aprendizaje de pesos en características.
 #+AUTHOR: Mario Román García
 
 # Portada con el número y título de la práctica, el curso académico, el
@@ -6,13 +7,33 @@
 # DNI y dirección e-mail del estudiante, y su grupo y horario de
 # prácticas.
 
-# Índice
+# TODO!: Índice
 
 * Formulación del problema
 # Máximo 1 página
+Trataremos un problema de *aprendizaje de pesos en características*
+(APC), consistente en la optimización de la simplicidad y precisión de
+un clasificador 1-NN. Cada solución del problema vendrá dada por un
+vector de pesos reales $w_i \in [0,1]$ para $1 \leq i \leq n$, donde $n$ es el número
+de características que tiene el problema. Y su bondad sobre un conjunto
+de evaluación $T$ viene determinada como
+\[
+F(\left\{ w_i \right\}) = \alpha \mathrm{tasaClas}\left\{ w_i \right\} + (1 - \alpha) \mathrm{tasaRed}\left\{ w_i \right\}
+\]
+donde $\mathrm{tasaClas}$ mide el porcentaje de aciertos del clasificador en el
+conjunto $T$ y $\mathrm{tasaRed}$ mide el número de pesos $w_i$ que quedan por debajo
+de $0.2$, y que consecuentemente no se tienen en cuenta al calcular las
+distancias. En nuestro caso tomamos $\alpha = 0.5$.
 
 * Aplicación de algoritmos
 # Máximo 4 páginas
+Se define la *distancia con epsos* $\left\{ w_i \right\}$ entre dos vectores $a_{i}$ y $b_i$
+como
+\[
+\|a_i - b_i\| = \sum_{i=0}^n w_i(a_i - b_i)^2.
+\]
+Y nuestro clasificador $\mathrm{knn}$ para unos pesos $\left\{ w_i \right\}$ consiste en devolver
+la clase del punto que minimiza la distancia.
 
 * Pseudocódigo del método de búsqueda
 # No incluir listado total o parcial del código fuente (!)
