@@ -1,17 +1,21 @@
 all: executables Onenn_sols Onenn_reports
 
+# SEMILLA ALEATORIA
+SEED=42
+
 # COMPILACIÓN
 # Usará la herramienta stack para compilar con Haskell.
 ST=stack exec\
 --package split \
 --package options \
 --package random \
+--package random-shuffle \
 --package accelerate-llvm-ptx \
 --package normaldistribution
 
 # Stack proporciona un compilador y un intérprete con las librerías
 # solicitadas. El intérprete carga además todo el código fuente.
-STK=$(ST) -- ghc -isrc -odir obj -hidir obj
+STK=$(ST) -- ghc -O2 -fllvm -isrc -odir obj -hidir obj
 STKGHCI=$(ST) -- ghci -isrc -odir obj -hidir obj src/*
 # Proporciona un intérprete con el código cargado al ejecutar 'make ghci'
 ghci:
@@ -51,29 +55,34 @@ bin/scorer: src/Scorer.hs src/Base.hs src/Input.hs
 	$(STK) $< -o $@ -main-is Scorer
 
 
+# Construcción de ejecutables, lo separamos del resto porque cada uno
+# tiene unas dependencias distintas.
+bin/Onenn: src/Onenn.hs src/Base.hs src/Input.hs src/TemplateMain.hs
+	$(STK) $^ -o $@ -main-is Onenn
+bin/Relief: src/Relief.hs src/Base.hs src/Input.hs src/TemplateMain.hs
+	$(STK) $^ -o $@ -main-is Relief
+bin/LocalSearch: src/LocalSearch.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
+	$(STK) $^ -o $@ -main-is LocalSearch
+
 
 # Describimos todo lo que queremos hacer para cada uno de los algoritmos
 # que evaluamos de forma paramétrica en el algoritmo. Toda la siguiente
 # sección es paramétrica y se repetirá para cada uno de los algoritmos.
 # Se define
-#  - Construcción del ejecutable.
 #  - Cálculo de las soluciones.
 #  - Cálculo de la bondad de las soluciones.
 #  - Presentación de un report final.
 define VALIDATION =
-bin/$(1): src/$(1).hs src/Base.hs src/Input.hs
-	$$(STK) $$^ -o $$@ -main-is $(1)
-
 %.arff.$(1).sol1: bin/$(1) %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part5
-	cat $$(filter-out $$<,$$^) | bin/$(1) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) > $$@
 %.arff.$(1).sol2: bin/$(1) %.arff.part1 %.arff.part3 %.arff.part4 %.arff.part5
-	cat $$(filter-out $$<,$$^) | bin/$(1) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) > $$@
 %.arff.$(1).sol3: bin/$(1) %.arff.part2 %.arff.part1 %.arff.part4 %.arff.part5
-	cat $$(filter-out $$<,$$^) | bin/$(1) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) > $$@
 %.arff.$(1).sol4: bin/$(1) %.arff.part2 %.arff.part3 %.arff.part1 %.arff.part5
-	cat $$(filter-out $$<,$$^) | bin/$(1) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) > $$@
 %.arff.$(1).sol5: bin/$(1) %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part1
-	cat $$(filter-out $$<,$$^) | bin/$(1) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) > $$@
 
 $(1)_sols1: $$(addsuffix .arff.$(1).sol1, $$(basename $$(wildcard data/*.arff)))
 $(1)_sols2: $$(addsuffix .arff.$(1).sol2, $$(basename $$(wildcard data/*.arff)))
@@ -99,7 +108,7 @@ $(1)_sols: $(1)_sols1 $(1)_sols2 $(1)_sols3 $(1)_sols4 $(1)_sols5
 $(1)_reports: $$(addsuffix .arff.$(1).report, $$(basename $$(wildcard data/*.arff)))
 endef
 
-$(foreach i,Onenn,$(eval $(call VALIDATION,$(i))))
+$(foreach i,Onenn Relief LocalSearch,$(eval $(call VALIDATION,$(i))))
 
 
 
@@ -114,7 +123,7 @@ clean-sols:
 clean-executables:
 	@echo "Borrando ejecutables..."
 	rm -rf bin/*
-clean: clean-parts clean-sols clean-executables
+clean-all: clean-parts clean-sols clean-executables
 
 executables: bin/fivefold bin/scorer bin/Onenn
 

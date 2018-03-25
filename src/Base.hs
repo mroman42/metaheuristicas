@@ -38,14 +38,15 @@ type Solution = [Weight]
 type Heuristic = Problem -> Solution
 type Classifier = Instance -> Class
 
-
-
 -- Las distancias vienen dadas en flotantes.
 type Distance = Double
 
+-- Las semillas de aleatoriedad son enteros.
+type Seed = Int
 
 -- Mide la distancia euclídea con pesos entre dos instancias.
 -- Los pesos menores que 0.2 se descartan automáticamente.
+-- Nótese que esta es la distancia al cuadrado.
 dist :: Solution -> Instance -> Instance -> Distance
 dist v x y = dist' v (fst x) (fst y)
   where
@@ -55,7 +56,9 @@ dist v x y = dist' v (fst x) (fst y)
         w' :: [Weight]
         w' = map (\z -> if z < 0.2 then 0 else z) w    
 
-
+-- Nótese que esta es la distancia al cuadrado. (!)
+distEuclid :: Instance -> Instance -> Distance
+distEuclid (x,_) (y,_) = sum $ map (** 2.0) (zipWith (-) x y)
 
 
 -- Implementación del clasificador 1-KNN. Un clasificador toma un
@@ -63,10 +66,10 @@ dist v x y = dist' v (fst x) (fst y)
 -- Podemos medirlo directamente en booleanos o usando enteros que
 -- representen a los booleanos.
 knn :: Solution -> (Problem -> Instance -> Bool)
-knn w ins a = uncurry (==) ((knn' w ins &&& snd) a)
+knn w ins a = uncurry (==) ((knn' ins &&& snd) a)
   where
-    knn' :: Solution -> Problem -> Instance -> Class
-    knn' v j b = snd $ minimumBy (comparing fst) $ map (dist v b &&& snd) j
+    knn' :: Problem -> Instance -> Class
+    knn' j b = snd $ minimumBy (comparing fst) $ map (dist w b &&& snd) j
 
 hit :: Bool -> Int
 hit True = 1
@@ -221,4 +224,3 @@ drawReports l = unlines $ map drawReport l
 
 -- printReport :: (Problem -> Solution) -> Problem -> IO ()
 -- printReport h p = putStr $ drawCompleteReport h p
-
