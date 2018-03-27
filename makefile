@@ -11,6 +11,7 @@ SEED=42
 # COMPILACIÓN
 # Usará la herramienta stack para compilar con Haskell.
 ST=stack exec\
+--package monad-loops \
 --package vector-strategies \
 --package split \
 --package options \

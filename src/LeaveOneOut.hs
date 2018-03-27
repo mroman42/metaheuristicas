@@ -14,19 +14,26 @@ import Data.Vector.Strategies
 objective :: Problem -> Solution -> Double
 objective = objectiveVector
 
--- Usamos código optimizado para el cálculo del LeaveOneOut. Una
--- versión que nos ha servido de base para optimizar puede encontrarse
--- en: http://lpaste.net/105456
-{-# INLINE objectiveVector #-}
-objectiveVector :: Problem -> Solution -> Double 
-objectiveVector p s = aggregate (fromProblem p) (fromSolution s)
+{-# INLINE objective' #-}
+objective' :: Problem -> UV.Vector Double -> Double
+objective' p = aggregate (fromProblem p)
   where
     fromProblem :: Problem -> V.Vector LabelPoint
     fromProblem prob = V.fromList $ map fromInstance prob
     fromInstance :: Instance -> LabelPoint
     fromInstance (q,cls) = LabelPoint (round cls) (UV.fromList q)
+
+-- Usamos código optimizado para el cálculo del LeaveOneOut. Una
+-- versión que nos ha servido de base para optimizar puede encontrarse
+-- en: http://lpaste.net/105456
+{-# INLINE objectiveVector #-}
+objectiveVector :: Problem -> Solution -> Double 
+objectiveVector p s = objective' p (fromSolution s)
+  where
     fromSolution :: Solution -> UV.Vector Double
     fromSolution = UV.fromList
+
+
 
 type Point = UV.Vector Double
 data LabelPoint = LabelPoint {label :: !Int, point :: !Point}
