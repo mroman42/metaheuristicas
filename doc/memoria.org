@@ -176,7 +176,6 @@ una solución.
 \end{algorithmic}
 \end{algorithm}
 
-
 * Pseudocódigo de los algoritmos de comparación
 Para comparar los algoritmos entre sí usaremos validación cruzada en 5
 partes. Tendremos un programa que parte los conjuntos de datos en cinco
@@ -209,7 +208,9 @@ manera acorde para conseguir los datos finales. En él se encuentra una
 semilla de aleatoriedad general (=$SEED=) que es la que se envía a los
 distintos algoritmos. Este mismo archivo contiene ejemplos de llamada
 a los ejecutables de la práctica y permite crear las soluciones de forma
-reproducible.
+reproducible.  Además de todo lo que se documenta en el makefile, hemos
+realizado un proceso previo de limpieza de los conjuntos de datos en el
+que hemos eliminado todas las líneas duplicadas.
 
 Tenemos varios ejecutables completamente indepedientes y que pueden
 usarse con cualquier instancia del problema que esté en formato =.arff=
