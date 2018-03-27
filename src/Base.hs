@@ -45,6 +45,7 @@ type Seed = Int
 -- Mide la distancia euclídea con pesos entre dos instancias.
 -- Los pesos menores que 0.2 se descartan automáticamente.
 -- Nótese que esta es la distancia al cuadrado.
+{-# INLINE distSqrd #-}
 distSqrd :: Solution -> Instance -> Instance -> Distance
 distSqrd v x y = distSqrd' v (fst x) (fst y)
   where
@@ -55,6 +56,7 @@ distSqrd v x y = distSqrd' v (fst x) (fst y)
         w' = map (\z -> if z < 0.2 then 0 else z) w    
 
 -- Nótese que esta es la distancia al cuadrado. (!)
+{-# INLINE distSqrdEuclid #-}
 distSqrdEuclid :: Instance -> Instance -> Distance
 distSqrdEuclid (x,_) (y,_) = sum $ map (** 2.0) (zipWith (-) x y)
 

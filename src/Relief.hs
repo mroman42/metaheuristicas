@@ -19,7 +19,7 @@ enemiesOf a = ofClass False (snd a)
 
 -- Busca al amigo y enemigo más cercanos en distancia Euclídea.
 closestTo :: Instance -> [Instance] -> Instance
-closestTo a = minimumBy (comparing (distEuclid a))
+closestTo a = minimumBy (comparing (distSqrdEuclid a))
 
 closestFriend :: Instance -> [Instance] -> Instance
 closestFriend a ins = closestTo a $ friendsOf a ins

@@ -10,11 +10,14 @@ import Data.Vector.Strategies
 
 
 
+{-# INLINE objective #-}
 objective :: Problem -> Solution -> Double
 objective = objectiveVector
 
-
--- http://lpaste.net/105456 
+-- Usamos código optimizado para el cálculo del LeaveOneOut. Una
+-- versión que nos ha servido de base para optimizar puede encontrarse
+-- en: http://lpaste.net/105456
+{-# INLINE objectiveVector #-}
 objectiveVector :: Problem -> Solution -> Double 
 objectiveVector p s = aggregate (fromProblem p) (fromSolution s)
   where
@@ -28,17 +31,19 @@ objectiveVector p s = aggregate (fromProblem p) (fromSolution s)
 type Point = UV.Vector Double
 data LabelPoint = LabelPoint {label :: !Int, point :: !Point}
 
--- TODO: Truncar los pesos
+
+{-# INLINE classify #-}
 classify :: V.Vector LabelPoint -> UV.Vector Double -> Point -> Int
 classify !training !weights !points = label mini
   where
-    distsqrd = UV.sum . UV.zipWith (****) weights . UV.map (^2) . UV.zipWith (-) points
+    distsqrd = UV.sum . UV.zipWith (****) weights . UV.map (^(2 :: Int)) . UV.zipWith (-) points
     mini = training V.! V.minIndex (V.map (discardZeroes . distsqrd . point) training)
     -- Leave one out
     discardZeroes z = if z == 0 then 1/0 else z
     -- Multiplicación truncada de los pesos
     (****) a b = if a < 0.2 then 0 else a * b
-    
+
+{-# INLINE validate #-}
 validate :: V.Vector LabelPoint -> UV.Vector Double -> Double
 validate !trainingSet !weights = correct
   where
@@ -46,8 +51,10 @@ validate !trainingSet !weights = correct
     numCorrect = V.sum (V.map isCorrect trainingSet `using` parVector 1)
     correct = fromIntegral numCorrect / fromIntegral (V.length trainingSet) 
 
+{-# INLINE simplicity #-}
 simplicity :: UV.Vector Double -> Double
 simplicity !weights = UV.sum $ UV.map (\w -> if w < 0.2 then 1 else 0) weights
 
+{-# INLINE aggregate #-}
 aggregate :: V.Vector LabelPoint -> UV.Vector Double -> Double
 aggregate !trainingSet !weights = validate trainingSet weights + simplicity weights

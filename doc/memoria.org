@@ -2,6 +2,15 @@
 #+SUBTITLE: Técnicas de búsqueda local y algoritmos greedy para el problema del aprendizaje de pesos en características.
 #+AUTHOR: Mario Román García
 
+#+latex_header: \usepackage{amsmath}
+#+latex_header: \usepackage{algorithm}
+#+latex_header: \usepackage[noend]{algpseudocode}
+#+latex_header: \usepackage{pdflscape}
+#+latex_header: \usepackage[a4paper]{geometry}
+
+#+OPTIONS: toc:nil
+#+LATEX_HEADER_EXTRA: \usepackage{wallpaper}\ThisULCornerWallPaper{1}{ugrA4.pdf}
+
 # Portada con el número y título de la práctica, el curso académico, el
 # nombre del problema escogido, los algoritmos considerados; el nombre,
 # DNI y dirección e-mail del estudiante, y su grupo y horario de
@@ -9,6 +18,11 @@
 
 # TODO!: Índice
 
+
+#+latex: \newpage
+* Índice                                                             :ignore:
+#+TOC: headlines 2
+#+latex: \newpage
 * Formulación del problema
 # Máximo 1 página
 Trataremos un problema de *aprendizaje de pesos en características*
@@ -18,27 +32,263 @@ vector de pesos reales $w_i \in [0,1]$ para $1 \leq i \leq n$, donde $n$ es el n
 de características que tiene el problema. Y su bondad sobre un conjunto
 de evaluación $T$ viene determinada como
 \[
-F(\left\{ w_i \right\}) = \alpha \mathrm{tasaClas}\left\{ w_i \right\} + (1 - \alpha) \mathrm{tasaRed}\left\{ w_i \right\}
+F(\left\{ w_i \right\}) = \alpha \mathrm{tasaClas}\left\{ w_i \right\} + (1 - \alpha) \mathrm{tasaRed}\left\{ w_i \right\}.
 \]
-donde $\mathrm{tasaClas}$ mide el porcentaje de aciertos del clasificador en el
-conjunto $T$ y $\mathrm{tasaRed}$ mide el número de pesos $w_i$ que quedan por debajo
-de $0.2$, y que consecuentemente no se tienen en cuenta al calcular las
-distancias. En nuestro caso tomamos $\alpha = 0.5$.
+En esta fórmula, $\mathrm{tasaClas}$ debe ser entendida como la *precisión* del
+algoritmo, midiendo el porcentaje de aciertos del clasificador en el
+conjunto de evaluación $T$. Por otro lado, $\mathrm{tasaRed}$ debe ser entendido
+como la *simplicidad* de la solución, que mide el número de pesos $w_i$ que
+quedan por debajo de $0.2$, y que consecuentemente no se tienen en cuenta al
+calcular las distancias. En nuestro caso tenemos determinado un valor de
+$\alpha = 0.5$ que equipara ambas métricas.
 
 * Aplicación de algoritmos
+:PROPERTIES:
+:ID:       1260d567-03c8-4b79-9549-4bbfdf0c22e9
+:END:
 # Máximo 4 páginas
-Se define la *distancia con pesos* $\left\{ w_i \right\}$ entre dos vectores $a_{i}$ y $b_i$
+Se define la *distancia con pesos* $\left\{ w_i \right\}$ entre dos vectores $t$ y $s$
 como
 \[
-\|a_i - b_i\| = \sum_{i=0}^n w_i(a_i - b_i)^2.
+\mathrm{dist}(w,t,s) = \sum_{i=0}^n w_i(t_i - s_i)^2.
 \]
 Y nuestro clasificador $\mathrm{knn}$ para unos pesos $\left\{ w_i \right\}$ consiste en devolver
-la clase del punto que minimiza la distancia.
+la clase del punto que minimiza la distancia. Es decir, es una implementación
+de un clasificador 1NN, que para cada instancia devuelve la clase
+de su vecino más cercano.
 
-* Pseudocódigo del método de búsqueda
+\begin{algorithm}
+\small
+\caption{Función objetivo (w : Pesos, T : Training, S : Test)}
+\begin{algorithmic}[1]
+
+\State $\mathrm{Obj}(w,T,S) = \alpha \cdot \mathrm{precision}(w,T,S) + (1-\alpha) \mathrm{simplicity}(w)$
+\State $\mathrm{TasaRed}(w) = \mathrm{length} [x < 0.2 \mid x \in w] / \mathrm{length}\ w$
+\State $\mathrm{TasaClas}(w,T,S) = \sum_{s \in S} (\mathrm{knn}(w,T,s) == s.Clase) / \mathrm{length}\ s$
+\State $\mathrm{knn}(w,T,s) = (\mathrm{minimizador}_{t \in T} (\mathrm{dist^2}(\mathrm{trunca}(w),t,s))).Clase$
+\State $\mathrm{trunca}(w) = \left\{ 0 \mbox{ si } w_i < 0.2;\quad w_i \mbox{ en otro caso }\mid w_i \in w \right\}$
+\end{algorithmic}
+\end{algorithm}
+
+En el código original esta función objetivo aparecerá implementada dos
+veces: una vez para el puntuador de los algoritmos y otra vez para la
+función objetivo. Esta duplicación tiene como ventaja que separa
+completamente las partes de evaluación del código de los algoritmos,
+reduciendo la posibilidad de error. Además,
+
+ * la implementación para evaluación es corta y es más fácil de
+   verificar que está escrita correctamente;
+ * mientras que la implementación de la función objetivo está
+   fuertemente optimizada, usando paralelismo, pero en caso de que
+   tuviera cualquier error, eso no se vería reflejado en las
+   puntuaciones de los algoritmos.
+
+* Pseudocódigo de los algoritmos de búsqueda
 # No incluir listado total o parcial del código fuente (!)
 
+Al usar pseudocódigo nótese que para reflejar más fielmente nuestra
+implementación, que intenta ser declarativa y basada en el paradigma
+de programación funcional, usaremos pseudocódigo basado en definiciones
+declarativas de funciones matemáticas.
+
+** 1NN
+La primera solución, que usaremos como referencia, es completamente
+trivial y se basa simplemente en usar directamente el clasificador
+1NN con una distancia euclídea usual. Dentro de nuestra formulación
+del problema, esto equivale a una solución que simplemente devuelva
+en todos los casos un vector de pesos hecho constantemente de unos.
+
+\begin{algorithm}
+\small
+\caption{1NN (t : Training)}
+\begin{algorithmic}[1]
+
+\State $\mathrm{1NN}(t) = \mathrm{replica}\ (\mathrm{nAttr}(t))\ \mbox{veces } 1$
+\end{algorithmic}
+\end{algorithm}
+
+** Relief
+La segunda solución de referencia implementa una variante del
+algoritmo greedy RELIEF cite:kira92. En esencia, para cada instancia
+calcularemos la distancia al amigo (instancia con la misma clase) más
+cercano y al enemigo (instancia con distinta clase) más cercano y
+actualizaremos el vector de pesos en consecuencia.
+
+\[
+
+\]
+
+** Búsqueda local
+El operador de *generación de vecinos* será una mutación que tomará
+aleatoriamente un índice extraído de una distribución uniforme y un
+epsilon extraído de una distribución normal. 
+
+\begin{algorithm}
+\small
+\caption{Mutación en búsqueda local (w : Pesos, i : Índice, $\varepsilon$ : Epsilon)}
+\begin{algorithmic}[1]
+
+\State $\mathrm{Mutacion}(\varepsilon,i, w) = 
+\mathrm{map}\ (\lambda (x,i). x + \delta_{ij} \varepsilon)\ (\mathrm{indexa}\ w)$
+\end{algorithmic}
+\end{algorithm}
+
+El método de búsqueda consiste principalmente en dos funciones. Una de
+ellas busca una mejora local, aplicando repetidamente mutaciones con
+argumentos procedentes de una distribución normal y una permutación
+aleatoria y la otra ejecuta varias veces la búsqueda local. Lo usaremos
+como *exploración del entorno*.
+
+\begin{algorithm}
+\small
+\caption{Búsqueda Local (s : Semilla, t : Training)}
+\begin{algorithmic}[1]
+
+\State $\mathrm{busqueda}(s,t) = \mathrm{repite}\ \mathrm{busquedaLocal}\ \mathrm{solucionAleatoria}$
+\State \begin{aligned}
+\mathrm{busquedaLocal}&(s,t,w) = \textrm{composicionDe} \\
+& \$\ \textrm{busca}\ (\lambda w'. \textrm{objetivo}(w') < \textrm{objetivo}(w))\\
+& \$\ \textrm{entreLasPrimeras}\ \min(20 \textrm{longitud}(w) , 15000) \\
+& \$\ \textrm{map}\ (\mathrm{Mutacion}\ w) \\
+& \$\ \left\{ (\sigma(n) , \varepsilon) \mid \varepsilon \sim {\cal N}(0,0.3), n \in \left\{ 0, .. , \mathrm{longitud}(w) \right\}  \right\} \\
+& \$\ \mathrm{para}\ \sigma \mbox{ permutacion aleatoria}
+\end{aligned}
+
+\end{algorithmic}
+\end{algorithm}
+
+La generación de la *solución aleatoria inicial* se hace directamente usando
+las librerías del lenguaje cite:DataNormal, que proporcionan funciones para crear listas
+potencialmente infinitas de reales distribuidos respecto a una distribución
+normal dada. Internamente, se usa el método de Box-Müller cite:box58 para generar los valores.
+De esa lista extraemos sólo los números necesarios para construir
+una solución.
+
+\begin{algorithm}
+\small
+\caption{Solución aleatoria (t : Training)}
+\begin{algorithmic}[1]
+
+\State \begin{aligned}
+\mathrm{solucionAleatoria}(t) &= \mbox{tomaLos } (\mathrm{nAttr}(t)) \mbox{ primerosDe } \\
+& \mathrm{random} {\cal N}(\mu = 0.5, \sigma = 0.5)
+\end{aligned}
+\end{algorithmic}
+\end{algorithm}
+
+
 * Pseudocódigo de los algoritmos de comparación
+Para comparar los algoritmos entre sí usaremos validación cruzada en 5
+partes. Tendremos un programa que parte los conjuntos de datos en cinco
+subconjuntos balanceados.
+
+\begin{algorithm}
+\small
+\caption{Partición en 5 (t : Training)}
+\begin{algorithmic}[1]
+
+\State \begin{aligned}
+\mathrm{5split}(t) &= \textrm{une}\ \textrm{partes1}\ \textrm{partes2} \\
+\end{aligned}
+\State $\mathrm{deClase1} = \mathrm{filtra}\ (\mathrm{.Clase} \equiv 1)$
+\State $\mathrm{deClase2} = \mathrm{filtra}\ (\mathrm{.Clase} \equiv 2)$
+\State $\mathrm{partes1} = \mathrm{parteEnTrozosDe}\ \lceil\mathrm{longitud}(t)/5\rceil\ \mathrm{deClase1}$
+\State $\mathrm{partes2} = \mathrm{parteEnTrozosDe}\ \lceil\mathrm{longitud}(t)/5\rceil\ \mathrm{deClase2}$
+\end{algorithmic}
+\end{algorithm}
+
 * Procedimiento considerado, manual de usuario
+El código de esta práctica está escrito en el lenguaje de programación
+*Haskell* cite:haskell98. El requisito fundamental para compilarlo es tener instalada
+*stack*, la herramienta de compilación de Haskell; además de ella, usa
+*GNU make* cite:GNUmake para hacer el proceso de validación y generación de soluciones
+completamente reproducible.
+
+El archivo =makefile= es el encargado de ejecutar los programas de
+manera acorde para conseguir los datos finales. En él se encuentra una
+semilla de aleatoriedad general (=$SEED=) que es la que se envía a los
+distintos algoritmos. Este mismo archivo contiene ejemplos de llamada
+a los ejecutables de la práctica y permite crear las soluciones de forma
+reproducible.
+
+Tenemos varios ejecutables completamente indepedientes y que pueden
+usarse con cualquier instancia del problema que esté en formato =.arff=
+o con cualquier solución dada por una cabecera =@time ...= midiendo
+los segundos que ha tardado y una lista de valores para los pesos
+en formato CSV:
+
+ * =bin/fivefold=, que toma como entrada un archivo =.arff= y crea 5
+   archivos entre los que reparte sus instancias, de forma que queden
+   balanceadas;
+ * =bin/scorer=, evalúa usando la función objetivo descrita [[id:1260d567-03c8-4b79-9549-4bbfdf0c22e9][anteriormente]],
+   recibirá el conjunto de training por la entrada estándar y tendrá
+   como argumentos de línea de comandos al conjunto de test y la solución;
+ * =bin/Onenn=, implementación trivial de la solución que devuelve
+   todos los pesos a 1;
+ * =bin/Relief=, implementación del algoritmo greedy Relief; y
+ * =bin/LocalSearch=, implementación de la búsqueda local.
+
+Todas las implementaciones reciben como argumento de línea de comandos
+una semilla aleatoria y leen por la entrada estándar un conjunto de
+entrenamiento; acabarán devolviendo una solución por salida estándar.
+
+El uso común de los programas será a traves del comando =make=. Normalmente,
+querremos generar un reporte de la bondad de un algoritmo determinado usando
+validación cruzada en cinco partes. Por ejemplo, supongamos que queremos
+generar un reporte de la bondad del algoritmo de búsqueda local sobre el 
+conjunto de datos =parkinsons.arff=. Para ello lanzaremos los siguientes
+comandos.
+
+#+BEGIN_SRC bash
+make data/parkinsons.arff.LocalSearch.report
+cat data/parkinsons.arff.LocalSearch.report
+#+END_SRC
+
+La ventaja de este enfoque es que permite la reutilización de los resultados
+ya calculados (que normalmente serán costosos en tiempo) automáticamente.
+
 * Experimentos y análisis de resultados
-* Referencias bibliográficas
+El único parámetro que nuestros algoritmos usarán globalmente es la
+semilla de generación aleatoria. En los experimentos que describimos
+aquí usamos siempre la semilla $s = 42$.
+Además de ella, existen parámetros que vienen fijados por los requisitos de
+la práctica: la desviación típica usada en la generación de vecinos de la
+búsqueda local se fija siempre en $\sigma = 0.3$, y la distribución de importancia
+entre precisión y simplicidad se fija siempre en $\alpha = 0.5$.
+
+** 1-NN
+Analizando el 1-NN.
+
+\begin{table}[!ht]
+\small
+\centering
+    \caption{Algoritmo 1-NN en el problema del APC}
+    \label{multiprogram}
+    \begin{tabular}{c|c|c|c|c|c|c|c|c|c|c|c|c|}
+        \cline{2-13}
+        &\multicolumn{4}{|c|}{Ozone} & \multicolumn{4}{|c|}{Parkinsons} & \multicolumn{4}{|c|}{Spectf}\\
+        \cline{2-13}
+         & \%clas & \%red & Agr. & T
+         & \%clas & \%red & Agr. & T
+         & \%clas & \%red & Agr. & T \\
+        \hline
+        \multicolumn{1}{|c|}{Partición 1} & * &  &  & & * &&&& * &&& \\
+        \multicolumn{1}{|c|}{Partición 2} & * &  &  & & * &&&& * &&& \\
+        \multicolumn{1}{|c|}{Partición 3} & * &  &  & & * &&&& * &&& \\
+        \multicolumn{1}{|c|}{Partición 4} & * &  &  & & * &&&& * &&& \\
+        \hline
+\end{tabular}
+\end{table}
+
+** Relief
+** Búsqueda local
+** Conclusiones
+Encontramos por tanto una mejora significativa al usar métodos de
+búsqueda local frente a soluciones triviales como la proporcionada
+por el 1NN; y frente a soluciones basadas en algoritmos voraces, que
+ofrecen comparativamente una solución muy pobre especialmente en cuanto
+a simplicidad.
+
+* Referencias :ignore:
+bibliographystyle:alpha
+bibliography:Bibliography.bib

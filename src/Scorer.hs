@@ -1,10 +1,13 @@
 module Scorer where
 
+import Control.Arrow
 import Control.Monad
 import Text.Printf
+import Text.Read
 import System.IO
 import System.Environment
 import Data.List
+import Data.List.Split
 
 import Base
 import Input
@@ -18,6 +21,7 @@ precision w training test = fromIntegral hits / fromIntegral (length test)
   where
     hits :: Int
     hits = sum $ map (knnHit w' training) test
+    -- Truncando los pesos
     w' = map (\x -> if x < 0.2 then 0 else x) w
 
 
@@ -58,6 +62,29 @@ report w training test = Report
 showReport :: Report -> String
 showReport r = intercalate "," $ map (printf "%.3f") [tasaClas r, tasaRed r, aggregate r, time r]
 
+
+-- Lee una solución para evaluarla
+readSolutionFile :: String -> (Time, Solution)
+readSolutionFile s = (checkTime . (id &&& readMaybe) . init . drop 7 . head . lines $ s,
+                      map (check . (id &&& readMaybe)) $ splitOn ","
+                      $ unlines $ dropWhile (isPrefixOf "@") $ lines s
+                     )
+    where
+      checkTime :: (String , Maybe Double) -> Double
+      checkTime (_,Just d) = d
+      checkTime (r,Nothing) = error ("Error: al leer el tiempo -> " ++ r)
+      
+      -- Comprueba que los pesos se hayan leído correctamente y que estén
+      -- dentro del intervalo [0,1].
+      check :: (String , Maybe Double) -> Double
+      check (_,Just f)
+        | f < 0.0 = error ("Peso negativo en la solución: " ++ show f)
+        | f > 1.0 = error ("Peso mayor que 1 en la solución: " ++ show f)
+        | otherwise = f
+      check (x,Nothing) = error ("Error: al leer ->" ++ x ++ "<-")
+      
+
+
 main :: IO ()
 main = do
   -- Recibe en la entrada estándar el conjunto de training; toma como
@@ -73,3 +100,4 @@ main = do
 
   let rp = report solution training test stime
   putStrLn (showReport rp)
+

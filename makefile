@@ -3,6 +3,11 @@ all: executables Onenn_sols Onenn_reports
 # SEMILLA ALEATORIA
 SEED=42
 
+# PROFILING. Activar
+#   --profile, para stack
+#   -prof, para GHC
+#   -p, para el ejecutable
+
 # COMPILACIÓN
 # Usará la herramienta stack para compilar con Haskell.
 ST=stack exec\
@@ -16,7 +21,7 @@ ST=stack exec\
 
 # Stack proporciona un compilador y un intérprete con las librerías
 # solicitadas. El intérprete carga además todo el código fuente.
-STK=$(ST) -- ghc -O2 -fforce-recomp -fllvm -threaded -isrc -odir obj -hidir obj
+STK=$(ST) -- ghc -O2 -Wall -fforce-recomp -fllvm -threaded -funfolding-use-threshold=16 -isrc -odir obj -hidir obj
 STKGHCI=$(ST) -- ghci -isrc -odir obj -hidir obj src/*
 # Proporciona un intérprete con el código cargado al ejecutar 'make ghci'
 ghci:

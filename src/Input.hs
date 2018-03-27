@@ -46,12 +46,4 @@ string2ProblemNorm = normalizeDataset . string2Problem
 showSolution :: Solution -> String
 showSolution s = intercalate "," (map (printf "%f") s)
 
-readSolutionFile :: String -> (Time, Solution)
-readSolutionFile s = (check . (id &&& readMaybe) . init . drop 7 . head . lines $ s,
-                      map read $ splitOn "," $ unlines $ dropWhile (isPrefixOf "@") $ lines s
-                     )
-    where
-      check :: (String , Maybe Double) -> Double
-      check (_,Just f) = f
-      check (x,Nothing) = error ("Error reading ->" ++ x ++ "<-")
                      
