@@ -1,7 +1,9 @@
 #+TITLE: Práctica 1.b
-#+SUBTITLE: Técnicas de búsqueda local y algoritmos greedy para el problema del aprendizaje de pesos en características.
+#+SUBTITLE: Técnicas de búsqueda local y algoritmos greedy para el problema del aprendizaje de pesos en características (APC).
 #+AUTHOR: Mario Román García
+#+LANGUAGE: es
 
+#+latex_header: \usepackage[spanish]{babel}\decimalpoint
 #+latex_header: \usepackage{amsmath}
 #+latex_header: \usepackage{algorithm}
 #+latex_header: \usepackage[noend]{algpseudocode}
@@ -11,61 +13,94 @@
 #+OPTIONS: toc:nil
 #+LATEX_HEADER_EXTRA: \usepackage{wallpaper}\ThisULCornerWallPaper{1}{ugrA4.pdf}
 
+
+* Datos de portada                                                   :ignore:
 # Portada con el número y título de la práctica, el curso académico, el
 # nombre del problema escogido, los algoritmos considerados; el nombre,
 # DNI y dirección e-mail del estudiante, y su grupo y horario de
 # prácticas.
 
-# TODO!: Índice
+ * DNI: 77145669N
+ * Email: mromang08@correo.ugr.es
+ * Grupo 1 (Lunes de 17:30 a 19:30)
+ * Algoritmos: 1-NN, RELIEF, Búsqueda Local.
+ * Metaheurísticas, 2017-2018.
 
-
-#+latex: \newpage
 * Índice                                                             :ignore:
+#+latex: \newpage
 #+TOC: headlines 2
 #+latex: \newpage
 * Formulación del problema
 # Máximo 1 página
 Trataremos un problema de *aprendizaje de pesos en características*
 (APC), consistente en la optimización de la simplicidad y precisión de
-un clasificador 1-NN. Cada solución del problema vendrá dada por un
-vector de pesos reales $w_i \in [0,1]$ para $1 \leq i \leq n$, donde $n$ es el número
-de características que tiene el problema. Y su bondad sobre un conjunto
-de evaluación $T$ viene determinada como
+un clasificador 1-NN; es decir, un clasificador que asigna a cada instancia
+la clase de la instancia más cercana a él, para una distancia euclídea modificada
+por un vector de pesos. Así, cada solución del problema vendrá dada por un
+vector de valores reales $w_i \in [0,1]$ para $1 \leq i \leq n$, donde $n$ es el número
+de características que tiene el problema. La bondad de un clasificador
+de este tipo sobre un conjunto de evaluación $T$ vendrá determinada como
 \[
 F(\left\{ w_i \right\}) = \alpha \mathrm{tasaClas}\left\{ w_i \right\} + (1 - \alpha) \mathrm{tasaRed}\left\{ w_i \right\}.
 \]
-En esta fórmula, $\mathrm{tasaClas}$ debe ser entendida como la *precisión* del
+En esta fórmula, $\mathir{tasaClas}$ debe ser entendida como la *precisión* del
 algoritmo, midiendo el porcentaje de aciertos del clasificador en el
-conjunto de evaluación $T$. Por otro lado, $\mathrm{tasaRed}$ debe ser entendido
+conjunto de evaluación $T$. Por otro lado, $\mathit{tasaRed}$ debe ser entendido
 como la *simplicidad* de la solución, que mide el número de pesos $w_i$ que
 quedan por debajo de $0.2$, y que consecuentemente no se tienen en cuenta al
 calcular las distancias. En nuestro caso tenemos determinado un valor de
 $\alpha = 0.5$ que equipara ambas métricas.
+
+En resumen, el algoritmo deberá tomar un conjunto de datos y producir
+un clasificador 1-NN con unos pesos asignados a las características que
+sean sencillos, en el sentido de usar el mínimo número de características,
+y que sean precisos, en cuanto a su habilidad para clasificar instancias
+fuera del conjunto de entrenamiento.
 
 * Aplicación de algoritmos
 :PROPERTIES:
 :ID:       1260d567-03c8-4b79-9549-4bbfdf0c22e9
 :END:
 # Máximo 4 páginas
+
+** Esquema de representación de soluciones
+Como hemos tratado anteriormente, una solución del problema viene dada
+por un vector de pesos. Nuestra representación específica de una solución
+vendrá dada por una lista de valores reales.
+
+\[
+\left\{ w_i \right\}_{0 \leq i \leq n} = \left( w_1,w_2,\dots,w_n \right)
+\]
+
+Donde $n$ será el número de características que tenga nuestro conjunto
+de datos y $w_i$. En nuestra implementación específica, los pesos
+vendrán dados por un vector contiguo en memoria de valores en coma
+flotante de precisión doble en 64 bits; para facilitar su tratamiento,
+en ciertos algoritmos se traducirán a listas enlazadas, pero su
+interpretación matemática será siempre constante y se describe
+explícitamente en la función objetivo.
+
+** Clasificador 1-NN, función objetivo
 Se define la *distancia con pesos* $\left\{ w_i \right\}$ entre dos vectores $t$ y $s$
 como
 \[
 \mathrm{dist}(w,t,s) = \sum_{i=0}^n w_i(t_i - s_i)^2.
 \]
-Y nuestro clasificador $\mathrm{knn}$ para unos pesos $\left\{ w_i \right\}$ consiste en devolver
+Y nuestro clasificador $\mathrm{kNN}$ para unos pesos $\left\{ w_i \right\}$ consiste en devolver
 la clase del punto que minimiza la distancia. Es decir, es una implementación
 de un clasificador 1NN, que para cada instancia devuelve la clase
-de su vecino más cercano.
+de su vecino más cercano. En el caso de la función objetivo, al no
+tener un conjunto de test separado, usamos la técnica de /leave-one-out/.
 
 \begin{algorithm}
 \small
-\caption{Función objetivo (w : Pesos, T : Training, S : Test)}
+\caption{Función objetivo (w : Pesos, T : Training)}
 \begin{algorithmic}[1]
 
-\State $\mathrm{Obj}(w,T,S) = \alpha \cdot \mathrm{precision}(w,T,S) + (1-\alpha) \mathrm{simplicity}(w)$
+\State $\mathrm{Obj}(w,T) = \alpha \cdot \mathrm{precision}(w,T) + (1-\alpha) \mathrm{simplicity}(w)$
 \State $\mathrm{TasaRed}(w) = \mathrm{length} [x < 0.2 \mid x \in w] / \mathrm{length}\ w$
-\State $\mathrm{TasaClas}(w,T,S) = \sum_{s \in S} (\mathrm{knn}(w,T,s) == s.Clase) / \mathrm{length}\ s$
-\State $\mathrm{knn}(w,T,s) = (\mathrm{minimizador}_{t \in T} (\mathrm{dist^2}(\mathrm{trunca}(w),t,s))).Clase$
+\State $\mathrm{TasaClas}(w,T) = \sum_{t \in T} (\mathrm{knn}(w,T - t,t) == s.Clase) / \mathrm{length}\ s$
+\State $\mathrm{knn}(w,T,t) = (\mathrm{minimizador}_{t' \in T} (\mathrm{dist^2}(\mathrm{trunca}(w),t',t))).Clase$
 \State $\mathrm{trunca}(w) = \left\{ 0 \mbox{ si } w_i < 0.2;\quad w_i \mbox{ en otro caso }\mid w_i \in w \right\}$
 \end{algorithmic}
 \end{algorithm}
@@ -83,20 +118,34 @@ reduciendo la posibilidad de error. Además,
    tuviera cualquier error, eso no se vería reflejado en las
    puntuaciones de los algoritmos.
 
+Es importante notar que la formulación original del problema no asume
+que todas las variables sean reales, y en el caso en el que son discretas
+asume una distancia de Hamming que simplemente indica si las dos características
+son exactamente iguales.
+\[\mathrm{dist}(a,b) = \delta_{ab} = \left\{\begin{array}{cl}
+1 & \mbox{ si } a = b \\
+0 & \mbox{ si } a \neq b \\
+\end{array}\right.\]
+
+En los conjuntos de datos que trataremos en este análisis, tenemos de
+hecho que todas las características vienen dadas por reales, y nuestra
+implementación, aunque sería fácilmente extensible, no tratará el otro
+caso explícitamente.
+
 * Pseudocódigo de los algoritmos de búsqueda
 # No incluir listado total o parcial del código fuente (!)
 
 Al usar pseudocódigo nótese que para reflejar más fielmente nuestra
 implementación, que intenta ser declarativa y basada en el paradigma
-de programación funcional, usaremos pseudocódigo basado en definiciones
-declarativas de funciones matemáticas.
+de *programación funcional*, usaremos pseudocódigo basado en
+definiciones declarativas de funciones matemáticas.
 
 ** 1NN
 La primera solución, que usaremos como referencia, es completamente
-trivial y se basa simplemente en usar directamente el clasificador
-1NN con una distancia euclídea usual. Dentro de nuestra formulación
-del problema, esto equivale a una solución que simplemente devuelva
-en todos los casos un vector de pesos hecho constantemente de unos.
+trivial y se basa simplemente en usar directamente el clasificador 1NN
+con una distancia euclídea usual. Dentro de nuestra formulación del
+problema, esto equivale a una solución que simplemente devuelva en
+todos los casos un vector de pesos hecho constantemente de unos.
 
 \begin{algorithm}
 \small
@@ -114,45 +163,72 @@ calcularemos la distancia al amigo (instancia con la misma clase) más
 cercano y al enemigo (instancia con distinta clase) más cercano y
 actualizaremos el vector de pesos en consecuencia.
 
-\[
+Tenemos una función "normaliza", que se aplicará al resultado final,
+dividirá todos los pesos por el máximo y asignará cero a aquellos que
+fueran negativos.
 
-\]
+\begin{algorithm}
+\small
+\caption{RELIEF (s : Semilla, T : Training)}
+\begin{algorithmic}[1]
+
+\State $\mathrm{Relief}(s,T) = \mathrm{normaliza}\ \left( \sum_{t \in T} \mathrm{vectorDistE}(t) - \mathrm{vectorDistA}(t) \right)$
+\State $\mathrm{normaliza}(w) = \left\{ w_i^+ / \max(w) \mid w_i \in w \right\}$
+\State $\mathrm{vectorDistA}(t) = \mathrm{map}\ \mathrm{valorAbsoluto}\ (t - \mathrm{amigoMasCer}(t))$
+\State $\mathrm{vectorDistE}(t) = \mathrm{map}\ \mathrm{valorAbsoluto}\ (t - \mathrm{enemigoMasCer}(t))$
+\State $\mathrm{amigoMasCer}(t) = \mathrm{minimizador}_{t'.Clase = t.Clase} \left( \mathrm{dist}^2(t',t) \right)$
+\State $\mathrm{enemigoMasCer}(t) = \mathrm{minimizador}_{t'.Clase \neq t.Clase} \left( \mathrm{dist}^2(t',t) \right)$
+\end{algorithmic}
+\end{algorithm}
+
 
 ** Búsqueda local
-El operador de *generación de vecinos* será una mutación que tomará
+El operador de *generación de vecinos* será una variación que tomará
 aleatoriamente un índice extraído de una distribución uniforme y un
 epsilon extraído de una distribución normal. 
 
 \begin{algorithm}
 \small
-\caption{Mutación en búsqueda local (w : Pesos, i : Índice, $\varepsilon$ : Epsilon)}
+\caption{Vecinos en búsqueda local (w : Pesos, i : Índice, $\varepsilon$ : Epsilon)}
 \begin{algorithmic}[1]
 
-\State $\mathrm{Mutacion}(\varepsilon,i, w) = 
+\State $\mathrm{Vecino}(\varepsilon,i, w) = \mathrm{truncaEntre0y1}\ 
 \mathrm{map}\ (\lambda (x,i). x + \delta_{ij} \varepsilon)\ (\mathrm{indexa}\ w)$
 \end{algorithmic}
 \end{algorithm}
 
 El método de búsqueda consiste principalmente en dos funciones. Una de
-ellas busca una mejora local, aplicando repetidamente mutaciones con
-argumentos procedentes de una distribución normal y una permutación
-aleatoria y la otra ejecuta varias veces la búsqueda local. Lo usaremos
-como *exploración del entorno*.
+ellas busca una mejora local, aplicando repetidamente la generación de
+vecinos con argumentos procedentes de una distribución normal y una
+permutación aleatoria y la otra ejecuta varias veces la búsqueda
+local. Lo usaremos como *exploración del entorno*. Nótese que esta
+exploración del entorno sigue la técnica del /primero mejor/ en lugar
+de generar un número fijo de variaciones locales y elegir la mejor
+entre todas ellas.
+
+Para esta exploración tendremos una estructura de datos dada por
+
+ * los pasos en total dados hasta el momento,
+ * los pasos dados desde la última optimización,
+ * un generador aleatorio,
+ * una permutación aleatoria de los índices que se generará según sea
+   necesaria para tomar índices aleatorios,
+ * la mejor solución hasta el momento, y
+ * la bondad de esa solución según la función objetivo.
+
+Habrá una función de exploración que actualice esta estructura y
+otra función que controlará el número de veces que exploramos el
+entorno.
 
 \begin{algorithm}
 \small
 \caption{Búsqueda Local (s : Semilla, t : Training)}
 \begin{algorithmic}[1]
 
-\State $\mathrm{busqueda}(s,t) = \mathrm{repite}\ \mathrm{busquedaLocal}\ \mathrm{solucionAleatoria}$
-\State \begin{aligned}
-\mathrm{busquedaLocal}&(s,t,w) = \textrm{composicionDe} \\
-& \$\ \textrm{busca}\ (\lambda w'. \textrm{objetivo}(w') < \textrm{objetivo}(w))\\
-& \$\ \textrm{entreLasPrimeras}\ \min(20 \textrm{longitud}(w) , 15000) \\
-& \$\ \textrm{map}\ (\mathrm{Mutacion}\ w) \\
-& \$\ \left\{ (\sigma(n) , \varepsilon) \mid \varepsilon \sim {\cal N}(0,0.3), n \in \left\{ 0, .. , \mathrm{longitud}(w) \right\}  \right\} \\
-& \$\ \mathrm{para}\ \sigma \mbox{ permutacion aleatoria}
-\end{aligned}
+\State $\mathrm{busqueda}(s,t) = \mathrm{hastaQue}(\mathrm{pasos_{glob}} = 15000 \mbox{ o } \mathrm{pasos_{loc}} = 20 \cdot n)\mbox{ aplica explora a solInicial}$
+\State $\mathrm{explora}(pasos,w) = \mbox{minimizadorDe } (\lambda w. \mathrm{objetivo}(w)) \mbox{ entre } \left\{ w, \mathrm{Vecino}(\varepsilon,i,w) \right\}$
+\State $\varepsilon_1,\varepsilon_2,\dots = \mathrm{random} {\cal N}(\mu = 0.5, \sigma = 0.5)$
+\State $i_1,i_2,\dots = \mathrm{random Permutacion}$
 
 \end{algorithmic}
 \end{algorithm}
@@ -166,20 +242,41 @@ una solución.
 
 \begin{algorithm}
 \small
-\caption{Solución aleatoria (t : Training)}
+\caption{Solución inicial (t : Training)}
 \begin{algorithmic}[1]
 
 \State \begin{aligned}
-\mathrm{solucionAleatoria}(t) &= \mbox{tomaLos } (\mathrm{nAttr}(t)) \mbox{ primerosDe } \\
-& \mathrm{random} {\cal N}(\mu = 0.5, \sigma = 0.5)
+\mathrm{solInicial}(t) &= \mbox{tomaLos } (\mathrm{nAttr}(t)) \mbox{ primerosDe }\ \mathrm{random} {\cal N}(\mu = 0.5, \sigma = 0.5)
 \end{aligned}
 \end{algorithmic}
 \end{algorithm}
 
+*** Variante de la búsqueda local
+Como añadido a la práctica, implementamos una variante de la búsqueda
+local que en lugar de variar una sola dimensión a cada paso, varía el
+vector completo. Lo único que cambia respecto a la búsqueda local anterior
+es por tanto el operador de variación, que ahora necesita un vector aleatorio
+generado de acuerdo a ${\cal N}(0,\sigma)$. Además, pasaremos a truncar entre 0.2 y 1, para evitar que regresen
+al vector características que queríamos eliminar, y pasamos a usar una
+varianza ligeramente menor, que elegimos empíricamente en $\sigma = 0.2$.
+
+\begin{algorithm}
+\small
+\caption{Vecino modificado (w : Pesos, i : Índice, $v\varepsilon$ : vectorAleatorio)}
+\begin{algorithmic}[1]
+
+\State $\mathrm{Vecino}(\varepsilon,i, w) = \mathrm{truncaEntre0.2y1}\ (w + v\varepsilon) \mbox{ para } v\varepsilon \sim {\cal N}(0,0.2)$
+\end{algorithmic}
+\end{algorithm}
+
+
 * Pseudocódigo de los algoritmos de comparación
 Para comparar los algoritmos entre sí usaremos validación cruzada en 5
 partes. Tendremos un programa que parte los conjuntos de datos en cinco
-subconjuntos balanceados.
+subconjuntos balanceados. Nótese que la proporción entre clases se mantiene
+igual a la del conjunto original al partir los datos inicialmente en dos
+bloques según su clase, partir en cinco partes cada uno de los trozos y
+luego recomponer las partes globalmente.
 
 \begin{algorithm}
 \small
@@ -196,16 +293,56 @@ subconjuntos balanceados.
 \end{algorithmic}
 \end{algorithm}
 
+La regla que indica cómo debemos usar estas particiones simplemente
+indica que cada una de las partes sirve para validar las otras cuatro;
+y que por tanto, para cada una de ellas, debemos entrenar el clasificador
+con las otras cuatro y luego aplicarlas. 
+
+\begin{algorithm}
+\small
+\caption{Comparación (algoritmo)}
+\begin{algorithmic}[1]
+
+\State \textbf{Para cada} parte $p \in \left\{ p1,p2,p3,p4,p5 \right\}$
+\State \quad \textit{pesos} $\gets$ Ejecuta \textit{algoritmo} en $\left\{ p1,p2,p3,p4,p5 \right\} - p$
+\State \quad Puntúa 1-NN con \textit{pesos} y entrenamiento $(\left\{ p1,p2,p3,p4,p5 \right\} - p)$ sobre $p$
+
+\end{algorithmic}
+\end{algorithm}
+
+La implementación de este algoritmo de comparación es parte del
+archivo =make= que permite reproducir la práctica que se comenta en la
+próxima sección.
+
+Finalmente, la puntuación se hace aplicando 1-NN directamente, de forma similar a como lo
+hacíamos para calcular la función objetivo.
+
+\begin{algorithm}
+\small
+\caption{Puntuación (w : Pesos, T : Training, S : Test)}
+\begin{algorithmic}[1]
+
+\State $\mathrm{Obj}(w,T,S) = \alpha \cdot \mathrm{precision}(w,T,S) + (1-\alpha) \mathrm{simplicity}(w)$
+\State $\mathrm{TasaRed}(w) = \mathrm{length} [x < 0.2 \mid x \in w] / \mathrm{length}\ w$
+\State $\mathrm{TasaClas}(w,T,S) = \sum_{s \in S} (\mathrm{knn}(w,T,s) == s.Clase) / \mathrm{length}\ s$
+\State $\mathrm{knn}(w,T,s) = (\mathrm{minimizador}_{t \in T} (\mathrm{dist^2}(\mathrm{trunca}(w),t,s))).Clase$
+\State $\mathrm{trunca}(w) = \left\{ 0 \mbox{ si } w_i < 0.2;\quad w_i \mbox{ en otro caso }\mid w_i \in w \right\}$
+\end{algorithmic}
+\end{algorithm}
+
 * Procedimiento considerado, manual de usuario
 El código de esta práctica está escrito en el lenguaje de programación
-*Haskell* cite:haskell98. El requisito fundamental para compilarlo es tener instalada
-*stack*, la herramienta de compilación de Haskell; además de ella, usa
-*GNU make* cite:GNUmake para hacer el proceso de validación y generación de soluciones
+*Haskell* cite:haskell98. Esto nos ha permitido usar estructuras de
+alto nivel para las soluciones que permiten una optimización muy
+agresiva y que proporcionan paralelismo automáticamente cite:DataVector. El requisito
+fundamental para compilarlo es tener instalada *stack*, la herramienta
+de compilación de Haskell; además de ella, usa *GNU make* cite:GNUmake
+para hacer el proceso de validación y generación de soluciones
 completamente reproducible.
 
 El archivo =makefile= es el encargado de ejecutar los programas de
-manera acorde para conseguir los datos finales. En él se encuentra una
-semilla de aleatoriedad general (=$SEED=) que es la que se envía a los
+manera acorde para conseguir los datos finales. En él se encuentran varias
+semillas de aleatoriedad general (=$SEEDn=) que son las que se envían a los
 distintos algoritmos. Este mismo archivo contiene ejemplos de llamada
 a los ejecutables de la práctica y permite crear las soluciones de forma
 reproducible.  Además de todo lo que se documenta en el makefile, hemos
@@ -221,13 +358,19 @@ en formato CSV:
  * =bin/fivefold=, que toma como entrada un archivo =.arff= y crea 5
    archivos entre los que reparte sus instancias, de forma que queden
    balanceadas;
+
  * =bin/scorer=, evalúa usando la función objetivo descrita [[id:1260d567-03c8-4b79-9549-4bbfdf0c22e9][anteriormente]],
    recibirá el conjunto de training por la entrada estándar y tendrá
    como argumentos de línea de comandos al conjunto de test y la solución;
+
  * =bin/Onenn=, implementación trivial de la solución que devuelve
    todos los pesos a 1;
+
  * =bin/Relief=, implementación del algoritmo greedy Relief; y
+
  * =bin/LocalSearch=, implementación de la búsqueda local.
+
+ * =bin/LocalSearch2=, variación de la búsqueda local.
 
 Todas las implementaciones reciben como argumento de línea de comandos
 una semilla aleatoria y leen por la entrada estándar un conjunto de
@@ -246,50 +389,133 @@ cat data/parkinsons.arff.LocalSearch.report
 #+END_SRC
 
 La ventaja de este enfoque es que permite la reutilización de los resultados
-ya calculados (que normalmente serán costosos en tiempo) automáticamente.
+ya calculados (que normalmente serán costosos en tiempo) automáticamente,
+así como el cálculo programado de las dependencias y cálculos estrictamente
+necesarios, teniendo en cuenta los ya realizados, para producir cualquier
+resultado concreto.
 
 * Experimentos y análisis de resultados
 El único parámetro que nuestros algoritmos usarán globalmente es la
 semilla de generación aleatoria. En los experimentos que describimos
-aquí usamos siempre la semilla $s = 42$.
+aquí usaremos siempre las semillas $s = 0,1,2,3,4$ en cada una de las
+partes de la validación cruzada, respectivamente. Nótese que estos
+valores, como se ha comentado anteriormente, son argumentos a los
+ejecutables.
+
 Además de ella, existen parámetros que vienen fijados por los requisitos de
 la práctica: la desviación típica usada en la generación de vecinos de la
 búsqueda local se fija siempre en $\sigma = 0.3$, y la distribución de importancia
 entre precisión y simplicidad se fija siempre en $\alpha = 0.5$.
 
 ** 1-NN
-Analizando el 1-NN.
+Analizando el 1-NN, encontramos que los resultados son razonables en cuanto
+a precisión, pero que, al haberse conseguido a costa de usar toda la información
+disponible, tenemos un agregado por debajo incluso del que hubiéramos conseguido
+dejando todos los pesos a cero. Esta será simplemente una marca inicial sobre la
+que mejorar, en lugar de un primer intento.
 
 \begin{table}[!ht]
-\small
+\scriptsize
 \centering
-    \caption{Algoritmo 1-NN en el problema del APC}
-    \label{multiprogram}
-    \begin{tabular}{c|c|c|c|c|c|c|c|c|c|c|c|c|}
-        \cline{2-13}
-        &\multicolumn{4}{|c|}{Ozone} & \multicolumn{4}{|c|}{Parkinsons} & \multicolumn{4}{|c|}{Spectf}\\
-        \cline{2-13}
-         & \%clas & \%red & Agr. & T
-         & \%clas & \%red & Agr. & T
-         & \%clas & \%red & Agr. & T \\
-        \hline
-        \multicolumn{1}{|c|}{Partición 1} & * &  &  & & * &&&& * &&& \\
-        \multicolumn{1}{|c|}{Partición 2} & * &  &  & & * &&&& * &&& \\
-        \multicolumn{1}{|c|}{Partición 3} & * &  &  & & * &&&& * &&& \\
-        \multicolumn{1}{|c|}{Partición 4} & * &  &  & & * &&&& * &&& \\
-        \hline
-\end{tabular}
+  \caption{Algoritmo 1-NN en el problema del APC}
+  \label{multiprogram}
+  \input{../data/Onenn.tex}
 \end{table}
 
 ** Relief
+El primer algoritmo greedy proporcionaría simplicidad solo en los
+conjuntos en los que se dé la casualidad de que los pesos quedan por
+debajo del umbral que hemos marcado. En general, el rendimiento sigue
+siendo especialmente malo (en particular, peor que una solución con
+todo ceros); y lo único que hemos mejorado, no usar completamente todos
+los pesos, ni siquiera se refleja especialmente en la puntuación final.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Algoritmo Relief en el problema del APC}
+  \label{multiprogram}
+  \input{../data/Relief.tex}
+\end{table}
+
 ** Búsqueda local
-** Conclusiones
+En el algoritmo de búsqueda local es donde podemos encontrar mejoras
+notables por primera vez. En particular, es el primero que aprovecha
+realmente la función objetivo para proporcionar soluciones mucho más
+simples que las anteriores, a costa de solo una ligera pérdida de
+precisión. La otra característica del algoritmo es que es el primero
+que realmente necesita tiempo de ejecución. Incluso tras haber usado
+estructuras que aprovechaban el paralelismo, tenemos tiempos por
+encima de los diez segundos para conjuntos de datos y criterios de
+parada dados. La búsqueda local, por tanto, ha servido principalmente
+para simplificar nuestros clasificadores; esto probablemente haya sido
+condicionado por el alto valor ($\alpha = 0.5$) que le otorgamos a la
+simplificación.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Algoritmo de Búsqueda local en el problema del APC}
+  \label{multiprogram}
+  \input{../data/LocalSearch.tex}
+\end{table}
+
+Al ser una búsqueda que sigue al primero mejor en lugar de al mejor
+de todo el vecindario, esperamos que haya servido para reducir la
+rapidez con la que el algoritmo converge a un mínimo local. Será
+interesante comparar en el futuro con algoritmos poblacionales o
+incluso intentar búsquedas locales multiarranque. En estos momentos
+sólo podemos comparar con los algoritmos de referencia y tenemos
+una mejora sustancial incluso mientras se pierde precisión.
+
+*** Variante de la búsqueda local
+Como añadido a la práctica, habíamos implementado una variante de la
+búsqueda local. Sus resultados son ligeramente mejores que los de la
+variante principal y al parecer, converge más rápido a una solución,
+gastando así menos tiempo. No se comporta mejor sin embargo en
+datos de mayor dimensionalidad; lo que nos indica que deberíamos
+tener en cuenta en la elección de este nuevo $\sigma = 0.2$ la
+dimensionalidad del conjunto que estamos considerando. El querer que
+elección aleatoria de vectores fuera sobre una esfera n-dimensional
+nos indica que una propuesta futura podría tomarla como
+$\sigma/\sqrt{n}$ para algún valor de $\sigma$.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Algoritmo de Búsqueda local en el problema del APC}
+  \label{multiprogram}
+  \input{../data/LocalSearch2.tex}
+\end{table}
+
+** Resultados globales
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Resultados globales en el problema del APC}
+  \label{multiprogram}
+\begin{tabular}{c|c|c|c|c|c|c|c|c|c|c|c|c|}
+\cline{2-13}
+&\multicolumn{4}{|c|}{Ozone} & \multicolumn{4}{|c|}{Parkinsons} & \multicolumn{4}{|c|}{Spectf}\\
+\cline{2-13}
+& clas & red & Agr. & T(s)
+& clas & red & Agr. & T(s)
+& clas & red & Agr. & T(s) \\
+\hline
+\multicolumn{1}{|c|}{1NN}&0.816&0.000&0.408&0.032&0.783&0.000&0.391&0.008&0.774&0.000&0.387&0.016\\
+\multicolumn{1}{|c|}{RELIEF}&0.819&0.014&0.416&0.118&0.794&0.000&0.397&0.024&0.767&0.000&0.383&0.055\\
+\multicolumn{1}{|c|}{BL}&0.628&0.969&0.799&15.354&0.391&0.973&0.682&1.192&0.622&0.954&0.788&9.458\\
+\multicolumn{1}{|c|}{BL2}&0.738&0.800&0.769&13.177&0.655&0.909&0.782&0.898&0.768&0.855&0.811&7.488\\
+\hline
+\end{tabular}
+\end{table}
+
 Encontramos por tanto una mejora significativa al usar métodos de
 búsqueda local frente a soluciones triviales como la proporcionada
 por el 1NN; y frente a soluciones basadas en algoritmos voraces, que
 ofrecen comparativamente una solución muy pobre especialmente en cuanto
 a simplicidad.
 
-* Referencias :ignore:
+* Referencias                                                        :ignore:
 bibliographystyle:alpha
 bibliography:Bibliography.bib
