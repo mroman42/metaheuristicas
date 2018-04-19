@@ -1,7 +1,11 @@
 all: executables Onenn_sols Onenn_reports
 
-# SEMILLA ALEATORIA
-SEED=42
+# SEMILLAS ALEATORIAS
+SEED1=0
+SEED2=1
+SEED3=2
+SEED4=3
+SEED5=4
 
 # PROFILING. Activar
 #   --profile, para stack
@@ -11,6 +15,7 @@ SEED=42
 # COMPILACIÓN
 # Usará la herramienta stack para compilar con Haskell.
 ST=stack exec\
+--resolver lts-11.2 \
 --package vector-strategies \
 --package split \
 --package options \
@@ -21,13 +26,13 @@ ST=stack exec\
 
 # Stack proporciona un compilador y un intérprete con las librerías
 # solicitadas. El intérprete carga además todo el código fuente.
-STK=$(ST) -- ghc -O2 -Wall -fforce-recomp -fllvm -threaded -funfolding-use-threshold=16 -isrc -odir obj -hidir obj
+STK=$(ST) -- ghc -O3 -Wall -fforce-recomp -fllvm -threaded -funfolding-use-threshold=16 -isrc -odir obj -hidir obj
 STKGHCI=$(ST) -- ghci -isrc -odir obj -hidir obj src/*
 # Proporciona un intérprete con el código cargado al ejecutar 'make ghci'
 ghci:
 	$(STKGHCI)
 
-EXEFLG=+RTS -N8
+EXEFLG=+RTS -N4
 
 
 
@@ -70,7 +75,14 @@ bin/Relief: src/Relief.hs src/Base.hs src/Input.hs src/TemplateMain.hs
 	$(STK) $^ -o $@ -main-is Relief
 bin/LocalSearch: src/LocalSearch.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
 	$(STK) $^ -o $@ -main-is LocalSearch
-
+bin/LocalSearch2: src/LocalSearch2.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
+	$(STK) $^ -o $@ -main-is LocalSearch2
+bin/Ageca: src/Ageca.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
+	$(STK) $^ -o $@ -main-is Ageca
+bin/Ageblx: src/Ageblx.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
+	$(STK) $^ -o $@ -main-is Ageblx
+bin/Aggca: src/Aggca.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
+	$(STK) $^ -o $@ -main-is Aggca
 
 # Describimos todo lo que queremos hacer para cada uno de los algoritmos
 # que evaluamos de forma paramétrica en el algoritmo. Toda la siguiente
@@ -81,15 +93,15 @@ bin/LocalSearch: src/LocalSearch.hs src/Base.hs src/Input.hs src/TemplateMain.hs
 #  - Presentación de un report final.
 define VALIDATION =
 %.arff.$(1).sol1: bin/$(1) %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part5
-	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) $$(EXEFLG) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED1) $$(EXEFLG) > $$@
 %.arff.$(1).sol2: bin/$(1) %.arff.part1 %.arff.part3 %.arff.part4 %.arff.part5
-	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) $$(EXEFLG) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED2) $$(EXEFLG) > $$@
 %.arff.$(1).sol3: bin/$(1) %.arff.part2 %.arff.part1 %.arff.part4 %.arff.part5
-	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) $$(EXEFLG) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED3) $$(EXEFLG) > $$@
 %.arff.$(1).sol4: bin/$(1) %.arff.part2 %.arff.part3 %.arff.part1 %.arff.part5
-	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) $$(EXEFLG) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED4) $$(EXEFLG) > $$@
 %.arff.$(1).sol5: bin/$(1) %.arff.part2 %.arff.part3 %.arff.part4 %.arff.part1
-	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED) $$(EXEFLG) > $$@
+	cat $$(filter-out $$<,$$^) | bin/$(1) $$(SEED5) $$(EXEFLG) > $$@
 
 $(1)_sols1: $$(addsuffix .arff.$(1).sol1, $$(basename $$(wildcard data/*.arff)))
 $(1)_sols2: $$(addsuffix .arff.$(1).sol2, $$(basename $$(wildcard data/*.arff)))
@@ -113,9 +125,12 @@ $(1)_sols: $(1)_sols1 $(1)_sols2 $(1)_sols3 $(1)_sols4 $(1)_sols5
 	cat $$^ > $$@
 
 $(1)_reports: $$(addsuffix .arff.$(1).report, $$(basename $$(wildcard data/*.arff)))
+
+data/$(1).tex: data/ozone-320.arff.$(1).report data/parkinsons.arff.$(1).report data/spectf-heart.arff.$(1).report
+	./toLatex.sh $(1)
 endef
 
-$(foreach i,Onenn Relief LocalSearch,$(eval $(call VALIDATION,$(i))))
+$(foreach i,Onenn Relief LocalSearch LocalSearch2 Ageca Ageblx Aggca,$(eval $(call VALIDATION,$(i))))
 
 
 
@@ -132,7 +147,7 @@ clean-executables:
 	rm -rf bin/*
 clean-all: clean-parts clean-sols clean-executables
 
-executables: bin/fivefold bin/scorer bin/Onenn
+executables: bin/fivefold bin/scorer bin/Onenn bin/Relief bin/LocalSearch bin/LocalSearch2 bin/Ageca bin/Ageblx
 
 
 .PHONY:\

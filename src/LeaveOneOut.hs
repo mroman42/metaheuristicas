@@ -1,9 +1,10 @@
 {-# LANGUAGE BangPatterns #-}
-module LeaveOneOut where
+module LeaveOneOut (objective) where
 
 
 import Base (Problem, Solution, Instance)
 
+import Control.Parallel.Strategies
 import qualified Data.Vector as V
 import qualified Data.Vector.Unboxed as UV
 import Data.Vector.Strategies
@@ -22,7 +23,7 @@ objectiveVector :: Problem -> Solution -> Double
 objectiveVector p s = aggregate (fromProblem p) (fromSolution s)
   where
     fromProblem :: Problem -> V.Vector LabelPoint
-    fromProblem prob = V.fromList $ map fromInstance prob
+    fromProblem prob = V.fromList (map fromInstance prob)
     fromInstance :: Instance -> LabelPoint
     fromInstance (q,cls) = LabelPoint (round cls) (UV.fromList q)
     fromSolution :: Solution -> UV.Vector Double
