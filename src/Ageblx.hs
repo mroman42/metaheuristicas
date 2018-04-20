@@ -38,8 +38,8 @@ evolutionaryStep training (Environment popl g step s f) = Environment npopl g' (
     [r1,r2,r3,r4,r5] = take 5 $ randoms g
     (epsilon, g') = normal' (0,sigma) g
     -- Selection
-    parent1 = binaryTournament r1 popl
-    parent2 = binaryTournament r2 popl
+    parent1 = solution $ binaryTournament r1 popl
+    parent2 = solution $ binaryTournament r2 popl
     -- Crossing
     son1 = blx r4 parent1 parent2
     son2 = blx r5 parent1 parent2

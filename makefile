@@ -22,7 +22,8 @@ ST=stack exec\
 --package random \
 --package random-shuffle \
 --package accelerate-llvm-ptx \
---package normaldistribution
+--package normaldistribution \
+--package multiset
 
 # Stack proporciona un compilador y un intérprete con las librerías
 # solicitadas. El intérprete carga además todo el código fuente.
@@ -77,12 +78,14 @@ bin/LocalSearch: src/LocalSearch.hs src/Base.hs src/Input.hs src/TemplateMain.hs
 	$(STK) $^ -o $@ -main-is LocalSearch
 bin/LocalSearch2: src/LocalSearch2.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
 	$(STK) $^ -o $@ -main-is LocalSearch2
-bin/Ageca: src/Ageca.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
+bin/Ageca: src/Ageca.hs src/Genetic.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
 	$(STK) $^ -o $@ -main-is Ageca
-bin/Ageblx: src/Ageblx.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
+bin/Ageblx: src/Ageblx.hs src/Genetic.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
 	$(STK) $^ -o $@ -main-is Ageblx
-bin/Aggca: src/Aggca.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
+bin/Aggca: src/Aggca.hs src/Genetic.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
 	$(STK) $^ -o $@ -main-is Aggca
+bin/Aggblx: src/Aggblx.hs src/Genetic.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
+	$(STK) $^ -o $@ -main-is Aggblx
 
 # Describimos todo lo que queremos hacer para cada uno de los algoritmos
 # que evaluamos de forma paramétrica en el algoritmo. Toda la siguiente
@@ -130,7 +133,7 @@ data/$(1).tex: data/ozone-320.arff.$(1).report data/parkinsons.arff.$(1).report 
 	./toLatex.sh $(1)
 endef
 
-$(foreach i,Onenn Relief LocalSearch LocalSearch2 Ageca Ageblx Aggca,$(eval $(call VALIDATION,$(i))))
+$(foreach i,Onenn Relief LocalSearch LocalSearch2 Ageca Ageblx Aggca Aggblx,$(eval $(call VALIDATION,$(i))))
 
 
 
