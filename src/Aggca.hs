@@ -6,44 +6,33 @@ import Data.Ord
 import System.Random
 
 import Debug.Trace
+import Base (Weight, Problem, Seed)
+import Genetic
 
 import Ageca
-  ( Seed
-  , Solution
-  , Problem
-  , Population
-  , Environment (Environment)
-  , Individual (Individual, fitness, solution)
-  , binaryTournament
-  , replaceWorstBy
+  ( Environment (Environment)
   , age
-  , arithcross
   )
-import LocalSearch (mutation, sigma)
+import LocalSearch (sigma)
 import LeaveOneOut (objective)
 import TemplateMain
-
-update :: Int -> (a -> a) -> [a] -> [a]
-update n f (y:ys)
-  | n == 0    = f y : ys
-  | otherwise = y   : update (n-1) f ys
-update _ _ [] = error "Empty list"
 
 mutatePopulation :: Problem -> StdGen -> Population -> Population
 mutatePopulation training g popl = foldr apply popl list
   where
+    (g1,g2) = split g
     size = length popl
-    nattr = length (solution $ popl !! 1)
+    nattr = nattrp popl
     factor = 1000
     n = quot (nattr * size) factor
     
-    idvList = randomRs (0,size-1) g
-    idxList = randomRs (0,nattr) g
+    idvList = randomRs (0,size-1) g1
+    idxList = randomRs (0,nattr) g2
     epsilons = normals' (0,sigma) g
     list = take n $ zip3 idvList idxList epsilons
 
     apply :: (Int,Int,Double) -> Population -> Population
-    apply (idv,idx,epsilon) = update idv applyIdv
+    apply (idv,idx,epsilon) = _ idv applyIdv
       where
         applyIdv :: Individual -> Individual
         applyIdv (Individual w _) = Individual (applySol w) (objective training (applySol w))
@@ -72,9 +61,9 @@ evolutionaryStep training (Environment popl g step s f) =
         pair [a] = [(a,a)]
         pair [] = []
         
-    -- Mutation and final population
+    -- Mutación y población final
     newpopl =
-       replaceWorstBy (Individual s f) $ -- Includes the best one from the previous generation.
+       replaceWorstBy (Individual s f) $
        mutatePopulation training g $
        foldr (replaceWorstBy . (\u -> Individual u $ objective training u)) parents sons
     
