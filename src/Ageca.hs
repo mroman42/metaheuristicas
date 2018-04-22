@@ -26,16 +26,16 @@ evolutionaryStep training (Environment popl g step s f) =
   where
     [r1,r2,r3] = take 3 $ randoms g 
     (epsilon, g') = normal' (0,sigma) g
-    -- Selection
+    -- Selección
     parent1 = solution $ binaryTournament (mkStdGen r1) popl
     parent2 = solution $ binaryTournament (mkStdGen r2) popl
-    -- Crossing
-    son = arithcross parent1 parent2
-    -- Mutation
+    -- Cruce
+    son = trace ("Parents: " ++ show parent1 ++ show parent2) $ arithcross parent1 parent2
+    -- Mutación
     -- TODO: Probabilidad de mutación
     mson = mutation epsilon (mod r3 (length son)) son
     fitnessmson = objectiveFunction training mson
-    -- Replacing
+    -- Esquema de reemplazamiento
     npopl = replaceWorstBy (Individual mson fitnessmson) popl
     newf = if fitnessmson > f then fitnessmson else f
     news = if fitnessmson > f then mson else s
