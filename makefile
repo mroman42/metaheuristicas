@@ -71,6 +71,7 @@ bin/scorer: src/Scorer.hs src/Base.hs src/Input.hs
 
 # Construcción de ejecutables, lo separamos del resto porque cada uno
 # tiene unas dependencias distintas.
+SRC_GEN=src/Genetic.hs src/Individual.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs src/Population.hs
 bin/Onenn: src/Onenn.hs src/Base.hs src/Input.hs src/TemplateMain.hs
 	$(STK) $^ -o $@ -main-is Onenn
 bin/Relief: src/Relief.hs src/Base.hs src/Input.hs src/TemplateMain.hs
@@ -79,14 +80,21 @@ bin/LocalSearch: src/LocalSearch.hs src/Base.hs src/Input.hs src/TemplateMain.hs
 	$(STK) $^ -o $@ -main-is LocalSearch
 bin/LocalSearch2: src/LocalSearch2.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
 	$(STK) $^ -o $@ -main-is LocalSearch2
-bin/Ageca: src/Ageca.hs src/Genetic.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
+bin/Ageca: src/Ageca.hs $(SRC_GEN)
 	$(STK) $^ -o $@ -main-is Ageca
-bin/Ageblx: src/Ageblx.hs src/Genetic.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
+bin/Ageblx: src/Ageblx.hs $(SRC_GEN)
 	$(STK) $^ -o $@ -main-is Ageblx
-bin/Aggca: src/Aggca.hs src/Genetic.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
+bin/Aggca: src/Aggca.hs $(SRC_GEN)
 	$(STK) $^ -o $@ -main-is Aggca
-bin/Aggblx: src/Aggblx.hs src/Genetic.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs
+bin/Aggblx: src/Aggblx.hs $(SRC_GEN)
 	$(STK) $^ -o $@ -main-is Aggblx
+bin/AmAll: src/AmAll.hs $(SRC_GEN)
+	$(STK) $^ -o $@ -main-is AmAll
+bin/AmBest: src/AmBest.hs $(SRC_GEN)
+	$(STK) $^ -o $@ -main-is AmBest
+bin/AmProb: src/AmProb.hs $(SRC_GEN)
+	$(STK) $^ -o $@ -main-is AmProb
+
 
 # Describimos todo lo que queremos hacer para cada uno de los algoritmos
 # que evaluamos de forma paramétrica en el algoritmo. Toda la siguiente
@@ -134,7 +142,7 @@ data/$(1).tex: data/ozone-320.arff.$(1).report data/parkinsons.arff.$(1).report 
 	./toLatex.sh $(1)
 endef
 
-$(foreach i,Onenn Relief LocalSearch LocalSearch2 Ageca Ageblx Aggca Aggblx,$(eval $(call VALIDATION,$(i))))
+$(foreach i,Onenn Relief LocalSearch LocalSearch2 Ageca Ageblx Aggca Aggblx AmAll AmBest AmProb,$(eval $(call VALIDATION,$(i))))
 
 
 
