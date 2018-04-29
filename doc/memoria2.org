@@ -1,0 +1,365 @@
+#+TITLE: Práctica 2.b
+#+SUBTITLE: Técnicas de búsqueda basadas en poblaciones para el problema del aprendizaje de pesos en características (APC).
+#+AUTHOR: Mario Román García
+#+LANGUAGE: es
+
+#+latex_header: \usepackage[spanish]{babel}\decimalpoint
+#+latex_header: \usepackage{amsmath}
+#+latex_header: \usepackage{algorithm}
+#+latex_header: \usepackage[noend]{algpseudocode}
+#+latex_header: \usepackage{pdflscape}
+#+latex_header: \usepackage[a4paper]{geometry}
+
+#+OPTIONS: toc:nil
+#+LATEX_HEADER_EXTRA: \usepackage{wallpaper}\ThisULCornerWallPaper{1}{ugrA4.pdf}
+
+
+* Datos de portada                                                   :ignore:
+# Portada con el número y título de la práctica, el curso académico, el
+# nombre del problema escogido, los algoritmos considerados; el nombre,
+# DNI y dirección e-mail del estudiante, y su grupo y horario de
+# prácticas.
+
+ * DNI: 77145669N
+ * Email: mromang08@correo.ugr.es
+ * Grupo 1 (Lunes de 17:30 a 19:30)
+ * Algoritmos: AGE-{BLX,CA}, AGG-{BLX,CA}, AM-{10,0.1,mej}.
+ * Metaheurísticas, 2017-2018.
+
+* Índice                                                             :ignore:
+#+latex: \newpage
+#+TOC: headlines 2
+#+latex: \newpage
+* Formulación del problema
+# Máximo 1 página
+Trataremos un problema de *aprendizaje de pesos en características*
+(APC), consistente en la optimización de la simplicidad y precisión de
+un clasificador 1-NN; es decir, un clasificador que asigna a cada instancia
+la clase de la instancia más cercana a él, para una distancia euclídea modificada
+por un vector de pesos. Así, cada solución del problema vendrá dada por un
+vector de valores reales $w_i \in [0,1]$ para $1 \leq i \leq n$, donde $n$ es el número
+de características que tiene el problema. La bondad de un clasificador
+de este tipo sobre un conjunto de evaluación $T$ vendrá determinada como
+\[
+F(\left\{ w_i \right\}) = \alpha \mathrm{tasaClas}\left\{ w_i \right\} + (1 - \alpha) \mathrm{tasaRed}\left\{ w_i \right\}.
+\]
+En esta fórmula, $\mathir{tasaClas}$ debe ser entendida como la *precisión* del
+algoritmo, midiendo el porcentaje de aciertos del clasificador en el
+conjunto de evaluación $T$. Por otro lado, $\mathit{tasaRed}$ debe ser entendido
+como la *simplicidad* de la solución, que mide el número de pesos $w_i$ que
+quedan por debajo de $0.2$, y que consecuentemente no se tienen en cuenta al
+calcular las distancias. En nuestro caso tenemos determinado un valor de
+$\alpha = 0.5$ que equipara ambas métricas.
+
+En resumen, el algoritmo deberá tomar un conjunto de datos y producir
+un clasificador 1-NN con unos pesos asignados a las características que
+sean sencillos, en el sentido de usar el mínimo número de características,
+y que sean precisos, en cuanto a su habilidad para clasificar instancias
+fuera del conjunto de entrenamiento.
+
+* Aplicación de algoritmos
+:PROPERTIES:
+:ID:       1260d567-03c8-4b79-9549-4bbfdf0c22e9
+:END:
+# Máximo 4 páginas
+
+** Esquema de representación de soluciones
+Como hemos tratado anteriormente, una solución del problema viene dada
+por un vector de pesos. Nuestra representación específica de una solución
+vendrá dada por una lista de valores reales.
+
+\[
+\left\{ w_i \right\}_{0 \leq i \leq n} = \left( w_1,w_2,\dots,w_n \right)
+\]
+
+Donde $n$ será el número de características que tenga nuestro conjunto
+de datos y $w_i$. En nuestra implementación específica, los pesos
+vendrán dados por un vector contiguo en memoria de valores en coma
+flotante de precisión doble en 64 bits; para facilitar su tratamiento,
+en ciertos algoritmos se traducirán a listas enlazadas, pero su
+interpretación matemática será siempre constante y se describe
+explícitamente en la función objetivo.
+
+** Clasificador 1-NN, función objetivo
+Se define la *distancia con pesos* $\left\{ w_i \right\}$ entre dos vectores $t$ y $s$
+como
+\[
+\mathrm{dist}(w,t,s) = \sum_{i=0}^n w_i(t_i - s_i)^2.
+\]
+Y nuestro clasificador $\mathrm{kNN}$ para unos pesos $\left\{ w_i \right\}$ consiste en devolver
+la clase del punto que minimiza la distancia. Es decir, es una implementación
+de un clasificador 1NN, que para cada instancia devuelve la clase
+de su vecino más cercano. En el caso de la función objetivo, al no
+tener un conjunto de test separado, usamos la técnica de /leave-one-out/.
+
+\begin{algorithm}
+\small
+\caption{Función objetivo (w : Pesos, T : Training)}
+\begin{algorithmic}[1]
+
+\State $\mathrm{Obj}(w,T) = \alpha \cdot \mathrm{precision}(w,T) + (1-\alpha) \mathrm{simplicity}(w)$
+\State $\mathrm{TasaRed}(w) = \mathrm{length} [x < 0.2 \mid x \in w] / \mathrm{length}\ w$
+\State $\mathrm{TasaClas}(w,T) = \sum_{t \in T} (\mathrm{knn}(w,T - t,t) == s.Clase) / \mathrm{length}\ s$
+\State $\mathrm{knn}(w,T,t) = (\mathrm{minimizador}_{t' \in T} (\mathrm{dist^2}(\mathrm{trunca}(w),t',t))).Clase$
+\State $\mathrm{trunca}(w) = \left\{ 0 \mbox{ si } w_i < 0.2;\quad w_i \mbox{ en otro caso }\mid w_i \in w \right\}$
+\end{algorithmic}
+\end{algorithm}
+
+En el código original esta función objetivo aparecerá implementada dos
+veces: una vez para el puntuador de los algoritmos y otra vez para la
+función objetivo. Esta duplicación tiene como ventaja que separa
+completamente las partes de evaluación del código de los algoritmos,
+reduciendo la posibilidad de error. Además,
+
+ * la implementación para evaluación es corta y es más fácil de
+   verificar que está escrita correctamente;
+ * mientras que la implementación de la función objetivo está
+   fuertemente optimizada, usando paralelismo, pero en caso de que
+   tuviera cualquier error, eso no se vería reflejado en las
+   puntuaciones de los algoritmos.
+
+Es importante notar que la formulación original del problema no asume
+que todas las variables sean reales, y en el caso en el que son discretas
+asume una distancia de Hamming que simplemente indica si las dos características
+son exactamente iguales.
+\[\mathrm{dist}(a,b) = \delta_{ab} = \left\{\begin{array}{cl}
+1 & \mbox{ si } a = b \\
+0 & \mbox{ si } a \neq b \\
+\end{array}\right.\]
+
+En los conjuntos de datos que trataremos en este análisis, tenemos de
+hecho que todas las características vienen dadas por reales, y nuestra
+implementación, aunque sería fácilmente extensible, no tratará el otro
+caso explícitamente.
+
+** Generación de soluciones aleatorias
+La generación de una *solución aleatoria inicial* se realiza llamando
+repetidas veces a las librerías del lenguaje cite:MonadRandom. Estas proporcionan
+funciones que nos permiten clacular listas potencialmente infinitas
+de números reales distribuidos uniformemente en el intervalo $[0,1]$.
+Además, usamos replicamos el proceso aleatorio con mónadas para poder generar varios individuos
+cuidando que sean muestras independientes bajo el mismo generador aleatorio.
+
+\begin{algorithm}
+\small
+\caption{Solución inicial (t : Training)}
+\begin{algorithmic}[1]
+
+\State \begin{aligned}
+\mathrm{solInicial}(t) &= \mbox{tomaLos } (\mathrm{nAttr}(t)) \mbox{ primerosDe }\ \mathrm{aleatorioUniforme} (0.0,1.0)
+\end{aligned}
+\State \begin{aligned}
+\mathrm{PoblInicial}(t) &= \mbox{replica } 30 \mathrm{ solInicial}
+\end{aligned}
+
+\end{algorithmic}
+\end{algorithm}
+
+* Pseudocódigo de selección, cruce y mutación
+** Torneo binario
+Un torneo binario es un proceso aleatorio que genera un individuo o
+desde una población de soluciones. La población de soluciones llega
+a este punto del algoritmo en una estructura ordenada por bondad
+de solución basada en árboles binarios balanceados por tamaño
+(véase cite:DataSet y cite:SetsInFP), por lo que simplemente
+debemos elegir dos índices y tomar el mayor. El conjunto de entrenamiento
+no se usa explícitamente en el algoritmo pero es una dependencia
+necesaria para haber calculado previamente la bondad de los elementos
+de la población.
+
+\begin{algorithm}
+\small
+\caption{Torneo binario (p : Población, T : Training)}
+\begin{algorithmic}[1]
+
+\State $x = \mathrm{randomEntre}(0, \mathrm{size}(p)-1)$
+\State $y = \mathrm{randomEntre}(0, \mathrm{size}(p)-1)$
+\State $\mathrm{torneo}(p) = p[\mathrm{max}\ x\ y]$
+
+\end{algorithmic}
+\end{algorithm}
+
+En el código implementamos además variantes que realizan varios torneos
+binarios seguidos para usarlas directamente en los algoritmos.
+
+** Cruce aritmético
+El cruce aritmético de dos soluciones es una operación componente
+a componente que devuelve el centro de gravedad n-dimensional de
+los dos padres. Es una operación determinista que sólo genera un
+hijo.
+
+\begin{algorithm}
+\small
+\caption{Cruce aritmético (a : Individuo, b : Individuo)}
+\begin{algorithmic}[1]
+
+\State $media(x,y) = (x+y)/2.0$
+\State $ca(a,b) = \mathrm{componenteAComponente}\ \mathrm{media}\ a\ b$
+
+\end{algorithmic}
+\end{algorithm}
+
+** Cruce BLX
+El cruce BLX sí es no determinista y sí nos permitirá obtener dos
+hijos desde una sola pareja de padres. Nuestro código genera un solo
+hijo y simplemente repite (de nuevo usando mónadas) el procedimiento
+para asegurarse la independencia de los dos hijos.
+
+\begin{algorithm}
+\small
+\caption{Cruce BLX (a : Individuo, b : Individuo)}
+\begin{algorithmic}[1]
+
+\State $blx2(a,b) = \mathrm{replica}\ 2\ \mathrm{blx}(a,b)$
+\State $blx(a,b) = \mathrm{componenteAComponente}\ \mathrm{blxComp}(a,b)$
+\State $blxComp(x,y) = \mathrm{aleatorioUniformeEn}\ \mathrm{intervalo}(x,y)$
+\State $intervalo(x,y) = [0,1] \cap [\min(x,y) - \alpha|x-y|, \max(x,y) + \alpha|x-y|]$
+
+\end{algorithmic}
+\end{algorithm}
+
+En nuestro caso prepararemos el código para tratar uniformemente
+los dos cruces distintos, haciendo que cada uno devuelva una lista
+con uno y dos hijos y dejando que cada algoritmo trate estos dos
+casos.
+
+** Mutación
+La mutación, en su versión más común, procede directamente del
+operador de generación de vecinos de la búsqueda local. En ocasiones
+nos interesará mutar cada gen de un individuo con probabilidad 0.001.
+
+\begin{algorithm}
+\small
+\caption{Mutación (s : Solución)}
+\begin{algorithmic}[1]
+
+\State $Muta(s) = \mathrm{truncaEntre0y1}\
+\mathrm{map}\ (\lambda x. \mbox{if }rand() < 0.001 \mbox{ then } x + rand()\mbox{ else }x)$
+\end{algorithmic}
+\end{algorithm}
+
+Mientras que en otras ocasiones nos interesará aplicar un número
+fijo de mutaciones aleatorias sobre la población completa en lugar
+de generar un número aleatorio y comprobar si mutamos o no cada uno
+de los genes.
+
+\begin{algorithm}
+\small
+\caption{MutaPoblación (p : Población, n : Nº mutaciones)}
+\begin{algorithmic}[1]
+
+\State $Muta(p) = \mathrm{replica}\ n\ MutaUnaVez(p[i],j), \mbox{ para } i = rand(), j = rand()$
+\State $MutaUnaVezEn(s,j) = \mathrm{truncaEntre0y1}\ 
+\mathrm{map}\ (\lambda (x,i). x + \delta_{ij} \varepsilon)\ (\mathrm{indexa}\ s)$
+\end{algorithmic}
+\end{algorithm}
+
+En esos casos controlaremos el número de mutaciones totales para que
+se correspondan a las que deberían producirse en caso de que usáramos
+la esperanza matemática para calcular el número de mutaciones.
+
+* Pseudocódigo del esquema de evolución y reemplazamiento
+En general, nuestro algoritmo genético repite una subrutina denominada
+/paso generacional/ que se corresponderá con un cruce y sustitución en
+el modelo estacionario y con el avance de una generación en la
+evolución generacional. El criterio de parada no se determina por el
+número de generación sino por el número de evaluaciones de la función
+objetivo, que se almacena con la estructura de datos del algoritmo. 
+
+\begin{algorithm}
+\small
+\caption{EsquemaEvolutivo (pasoEv : Subrutina)}
+\begin{algorithmic}[1]
+
+\State $pobl \gets \mathrm{poblacionAleatoria}()$
+\State $\mathrm{iteraMientras}(evaluaciones > 15000)$
+\State $\qquad pasoEv(env)$
+
+\end{algorithmic}
+\end{algorithm}
+
+De esta forma podemos modelar las variantes del algoritmo evolutivo
+uniformemente. Cuando trabajamos gestionando el
+generador aleatorio, podemos escribir en estilo
+imperativo (esto se conoce como un "bloque =do=").
+
+** Esquema de evolución estacionario
+En el esquema de evolución estacionario, cada iteración hará dos
+evaluaciones para los dos nuevos hijos creados y que compiten con los
+individuos de la población anterior. Se realizarán los torneos
+necesarios para generar 2 hijos (que serán 2 o 4 según el operador de
+cruce); luego se mutarán los hijos sin usar la esperanza matemática,
+usando el primero de los operadores de mutación que describimos.
+Finalmente, se incluyen los hijos en la población y se eliminan los
+peores; la estructura de datos ordenada se encargará de esto
+automáticamente.
+
+\begin{algorithm}
+\small
+\caption{EsquemaEstacionario (p : Población, cruza : Operador)}
+\begin{algorithmic}[1]
+
+\State $padres \gets \mathrm{torneosBinarios}()$
+\State $hijos \gets \mathrm{toma}\ 2\ \mathrm{de}\ \mathrm{cruza}(\mathrm{empareja}(\mathrm{padres}))$
+\State $mutados \gets \mathrm{map}\ muta\ hijos$
+\State $nuevaPopl \gets \mathrm{insertaYReemplazaEn}(p,mutados)$
+\State $contadorEvaluaciones \gets +2$
+
+\end{algorithmic}
+\end{algorithm}
+
+Finalmente, el /emparejamiento/ se hace tomando el primero con el
+segundo, tercero con el cuarto, y así sucesivamente. En el caso en
+el que se necesitaran más parejas, se vuelve a empezar con la lista en el
+segundo elemento para emparejar el segundo con el tercero y así sucesivamente.
+
+** Esquema de evolución generacional
+Las iteraciones del algoritmo generacional generan 21 hijos nuevos;
+las parejas necesarias para ello (que serán el doble cuando estemos
+usando un operador de cruce de un solo hijo como el cruce aritmético)
+se obtendrán generando al principio una nueva población por torneo
+binario de 30 padres y luego usando el 70% para generar hijos.
+Luego aplicaremos de nuevo mutación a toda la población usando esta
+vez la esperanza matemática y acabaremos incluyendo el mejor de la
+generación anterior en la nueva población.
+
+\begin{algorithm}
+\small
+\caption{EsquemaGeneracional (p : Población, cruza : Operador)}
+\begin{algorithmic}[1]
+
+\State $mejor \gets \mathrm{max}(p)$
+\State $padres \gets \mathrm{torneosBinarios}()$
+\State $hijos \gets \mathrm{cruza}(\mathrm{empareja}(70\% \mbox{ de los } padres))$
+\State $npopl \gets \mathrm{toma}\ 30 \mbox{ de } padresNoCruzados + hijos + padresNoSubstituidos$
+\State $npopl \gets \mathrm{reemplaza}(mejor)\ \$\ \mathrm{muta}(npopl)$
+\State $contadorEvaluaciones \gets nº(hijos)+nº(padresMutados)$
+
+\end{algorithmic}
+\end{algorithm}
+
+** Reemplazamiento
+Explícitamente, el reemplazamiento en la población se realiza
+insertando y eliminando el mínimo en la estructura
+ordenada que describimos anteriormente.
+
+\begin{algorithm}
+\small
+\caption{Reemplazamiento (p : Población, h : individuo)}
+\begin{algorithmic}[1]
+
+\State $reemplaza(p,h) = (borraMínimo \circ inserta(h))\ p$
+\end{algorithmic}
+\end{algorithm}
+
+En cuanto al reemplazamiento en la selección del torneo binario,
+se ha implementado con y sin reemplazamiento (simplemente filtrando
+índices duplicados), y se usa con reemplazamiento cuando el número
+de padres no sería suficiente de otra forma.
+
+* Pseudocódigo de integración en algoritmos meméticos
+* Procedimiento considerado, manual de usuario
+* Experimentos y análisis de los resultados
+* Referencias                                                        :ignore:
+bibliographystyle:alpha
+bibliography:Bibliography.bib
