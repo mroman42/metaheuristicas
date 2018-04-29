@@ -181,7 +181,6 @@ fueran negativos.
 \end{algorithmic}
 \end{algorithm}
 
-
 ** Búsqueda local
 El operador de *generación de vecinos* será una variación que tomará
 aleatoriamente un índice extraído de una distribución uniforme y un
@@ -268,7 +267,6 @@ varianza ligeramente menor, que elegimos empíricamente en $\sigma = 0.2$.
 \State $\mathrm{Vecino}(\varepsilon,i, w) = \mathrm{truncaEntre0.2y1}\ (w + v\varepsilon) \mbox{ para } v\varepsilon \sim {\cal N}(0,0.2)$
 \end{algorithmic}
 \end{algorithm}
-
 
 * Pseudocódigo de los algoritmos de comparación
 Para comparar los algoritmos entre sí usaremos validación cruzada en 5

@@ -8,10 +8,14 @@ module Individual
   , randomIndividual
   -- Operador de mutación.
   , mutation
+  , mutationGenProb
+  -- Búsqueda local
+  , localSearchIn
   -- Operadores de cruce.
   , arithcross
   , arithcross'  
   , blx
+  , blx'
   )
 where
 
@@ -61,10 +65,13 @@ toListSolution = toList . solution
 -- | Cruza aritméticamente dos individuos.
 arithcross :: Problem -> Individual -> Individual -> Individual
 arithcross training a b = fromSolution training $
-  S.zipWith (\x y -> (x + y) / 2.0) (solution a) (solution b)
+  S.zipWith mean (solution a) (solution b)
+  where
+    mean x y = (x + y) / 2.0
 
-arithcross' :: Problem -> Individual -> Individual -> Rand StdGen Individual
-arithcross' training a b = return $ arithcross training a b
+-- | Versión general del cruce aritmético
+arithcross' :: Problem -> Individual -> Individual -> Rand StdGen [Individual]
+arithcross' training a b = return [arithcross training a b]
 
 -- | Muta una componente aleatoria de un individuo.
 mutation :: Problem -> Individual -> Rand StdGen Individual
@@ -81,6 +88,13 @@ mutation training a = do
       | x < 0 = 0 
       | otherwise = x
 
+-- | Sobre cada gen, aplicará una mutación aleatoria con probabilidad 0.001.
+mutationGenProb :: Problem -> Individual -> Rand StdGen Individual
+mutationGenProb training a = do
+  n <- length . filter (< (0.001 :: Double)) . take (nAttrInd a) <$> getRandomRs (0.0,1.0)
+  foldr (<=<) return (replicate n (mutation training)) a
+  
+
 -- | Cruce BLX
 blx :: Problem -> Individual -> Individual -> Rand StdGen Individual
 blx training a b = do
@@ -96,9 +110,34 @@ blx training a b = do
         (cmin,cmax,ii) = (min x y, max x y, max x y - min x y)
         interval = (max 0 (cmin - ii * alpha) , min 1 (cmax + ii * alpha))
 
--- Genera un individuo aleatorio.
+-- | Versión general del cruce BLX
+blx' :: Problem -> Individual -> Individual -> Rand StdGen [Individual]
+blx' training a b = replicateM 2 (blx training a b)
+  
+
+-- | Genera un individuo aleatorio.
 randomIndividual :: Problem -> Rand StdGen Individual
 randomIndividual training = do
   let nattr = nAttr training
   attrs <- replicateM nattr (getRandomR (0.0, 1.0))
   return $ fromSolution training $ S.fromList attrs
+
+
+-- Búsqueda Local Simplificada
+-- | En un paso de búsqueda local, toma el mejor entre el actual y una
+-- mutación suya.
+explore :: Problem -> Individual -> Rand StdGen Individual
+explore training a = max a <$> mutation training a
+
+-- | Búsqueda local basada en un individuo con probabilidad
+-- fija. Simplemente realiza un número dado de pasos de exploración.
+-- Devuelve las evaluaciones que ha gastado.
+localSearchIn :: Double -> Int -> Problem -> Individual -> Rand StdGen (Individual,Int)
+localSearchIn prob n training indv = do
+  epsilon <- getRandomR (0.0 , 1.0)
+  if prob >= epsilon then do
+    newindv <- foldr (>=>) return (replicate n (explore training)) indv
+    return (newindv, n)
+  else
+    return (indv, 0)
+  

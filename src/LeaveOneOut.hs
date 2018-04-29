@@ -54,7 +54,7 @@ validate !trainingSet !weights = correct
 
 {-# INLINE simplicity #-}
 simplicity :: UV.Vector Double -> Double
-simplicity !weights = UV.sum $ UV.map (\w -> if w < 0.2 then 1 else 0) weights
+simplicity !weights = UV.sum (UV.map (\w -> if w < 0.2 then 1 else 0) weights) / fromIntegral (UV.length weights)
 
 {-# INLINE aggregate #-}
 aggregate :: V.Vector LabelPoint -> UV.Vector Double -> Double
