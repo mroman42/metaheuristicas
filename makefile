@@ -23,6 +23,7 @@ ST=stack exec\
 --package random-shuffle \
 --package accelerate-llvm-ptx \
 --package normaldistribution \
+--package monad-loops \
 --package multiset
 
 # Stack proporciona un compilador y un intérprete con las librerías

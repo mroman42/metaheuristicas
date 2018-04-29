@@ -2,22 +2,24 @@ module Individual
   ( Individual
   , nAttrInd
   , fitness
+  , solution
+  , toListSolution
   -- Generación aleatoria.
   , randomIndividual
   -- Operador de mutación.
   , mutation
   -- Operadores de cruce.
   , arithcross
+  , arithcross'  
   , blx
   )
 where
 
-import Data.Random.Normal
-import Data.Sequence as S
-import Data.List as L
-import System.Random
+import Control.Monad.Random
+import qualified Data.Sequence as S
 import Data.Foldable
--- import Debug.Trace
+import Normal
+
 
 import LeaveOneOut
 import Base (Problem, nAttr)
@@ -25,10 +27,6 @@ import Base (Problem, nAttr)
 type Weight = Double
 type Solution = S.Seq Weight
 type Fitness = Double
---type Instance = ([Value],Class)
---type Class = Double
---type Value = Double
-
 
 data Individual = Individual
  { solution :: !Solution
@@ -56,44 +54,51 @@ nAttrInd = S.length . solution
 fromSolution :: Problem -> Solution -> Individual
 fromSolution training s = Individual s (objective training (toList s))
 
+-- | Devuelve su solución en formato lista.
+toListSolution :: Individual -> [Weight]
+toListSolution = toList . solution
 
 -- | Cruza aritméticamente dos individuos.
 arithcross :: Problem -> Individual -> Individual -> Individual
 arithcross training a b = fromSolution training $
   S.zipWith (\x y -> (x + y) / 2.0) (solution a) (solution b)
 
+arithcross' :: Problem -> Individual -> Individual -> Rand StdGen Individual
+arithcross' training a b = return $ arithcross training a b
+
 -- | Muta una componente aleatoria de un individuo.
-mutation :: Problem -> StdGen -> Individual -> Individual
-mutation training g a = fromSolution training $
-  S.adjust (trunc . (+ epsilon)) indx (solution a)
+mutation :: Problem -> Individual -> Rand StdGen Individual
+mutation training a = do
+  epsilon <- getNormal (0,sigma)
+  indx <- getRandomR (0,nAttrInd a-1)  
+  return $ fromSolution training $ S.adjust (trunc . (+ epsilon)) indx (solution a)
   where
     -- Sigma. Variación de la normal que produce la mutación.
     sigma = 0.3    
-    -- Genera la mutación y el índice al que se aplicará.
-    (epsilon,g') = normal' (0,sigma) g
-    (indx,_) = next g'
-    -- Trunca los pesos.
+    -- Trunca el peso después de mutarlo.
     trunc x
       | x > 1 = 1 
       | x < 0 = 0 
       | otherwise = x
 
 -- | Cruce BLX
-blx :: Problem -> StdGen -> Individual -> Individual -> Individual
-blx training g a b = fromSolution training $
-  operation <$> S.zip (S.fromList . L.take (nAttrInd a) $ randoms g) (S.zip (solution a) (solution b))
+blx :: Problem -> Individual -> Individual -> Rand StdGen Individual
+blx training a b = do
+  c <- sequence $ S.zipWith blxw (solution a) (solution b)
+  return $ fromSolution training c
   where
-    operation :: (Int, (Weight, Weight)) -> Weight
-    operation (seed, (x,y)) = fst $ randomR interval $ mkStdGen seed
+    blxw :: Weight -> Weight -> Rand StdGen Weight
+    blxw x y = getRandomR interval
       where
         -- Constante alpha que regula la amplitud del intervalo.
         alpha = 0.3
-        -- Cálculo del intervalo en el que está el resultado de la mutación.
+        -- Intervalo en el que está el resultado de la mutación.
         (cmin,cmax,ii) = (min x y, max x y, max x y - min x y)
         interval = (max 0 (cmin - ii * alpha) , min 1 (cmax + ii * alpha))
 
-
 -- Genera un individuo aleatorio.
-randomIndividual :: Problem -> StdGen -> Individual
-randomIndividual training g = fromSolution training $ S.fromList $
-  L.take (nAttr training) $ randomRs (0.0,1.0) g
+randomIndividual :: Problem -> Rand StdGen Individual
+randomIndividual training = do
+  let nattr = nAttr training
+  attrs <- replicateM nattr (getRandomR (0.0, 1.0))
+  return $ fromSolution training $ S.fromList attrs
