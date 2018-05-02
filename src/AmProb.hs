@@ -1,8 +1,8 @@
 module AmProb where
 
 import Genetic
-import Individual (arithcross')
+import Individual (blx')
 import TemplateMain
 
 main :: IO ()
-main = templateMain $ memetic (stationaryStep arithcross') memeticStepProb
+main = templateMain $ memetic (generationalStep blx') memeticStepProb

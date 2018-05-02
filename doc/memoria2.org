@@ -6,11 +6,13 @@
 #+latex_header: \usepackage[spanish]{babel}\decimalpoint
 #+latex_header: \usepackage{amsmath}
 #+latex_header: \usepackage{algorithm}
+#+latex_header: \usepackage{tikz}
+#+latex_header: \usepackage{pgfplots}\pgfplotsset{compat=1.15} 
 #+latex_header: \usepackage[noend]{algpseudocode}
 #+latex_header: \usepackage{pdflscape}
 #+latex_header: \usepackage[a4paper]{geometry}
 
-#+OPTIONS: toc:nil
+#+OPTIONS: toc:nil tasks:nil
 #+LATEX_HEADER_EXTRA: \usepackage{wallpaper}\ThisULCornerWallPaper{1}{ugrA4.pdf}
 
 
@@ -43,7 +45,7 @@ de este tipo sobre un conjunto de evaluación $T$ vendrá determinada como
 \[
 F(\left\{ w_i \right\}) = \alpha \mathrm{tasaClas}\left\{ w_i \right\} + (1 - \alpha) \mathrm{tasaRed}\left\{ w_i \right\}.
 \]
-En esta fórmula, $\mathir{tasaClas}$ debe ser entendida como la *precisión* del
+En esta fórmula, $\mathit{tasaClas}$ debe ser entendida como la *precisión* del
 algoritmo, midiendo el porcentaje de aciertos del clasificador en el
 conjunto de evaluación $T$. Por otro lado, $\mathit{tasaRed}$ debe ser entendido
 como la *simplicidad* de la solución, que mide el número de pesos $w_i$ que
@@ -145,12 +147,10 @@ cuidando que sean muestras independientes bajo el mismo generador aleatorio.
 \caption{Solución inicial (t : Training)}
 \begin{algorithmic}[1]
 
-\State \begin{aligned}
-\mathrm{solInicial}(t) &= \mbox{tomaLos } (\mathrm{nAttr}(t)) \mbox{ primerosDe }\ \mathrm{aleatorioUniforme} (0.0,1.0)
-\end{aligned}
-\State \begin{aligned}
-\mathrm{PoblInicial}(t) &= \mbox{replica } 30 \mathrm{ solInicial}
-\end{aligned}
+\State $\begin{aligned}\mathrm{solInicial}(t) &= \mbox{tomaLos } (\mathrm{nAttr}(t)) \mbox{ primerosDe }\ \mathrm{aleatorioUniforme} (0.0,1.0)
+\end{aligned}$
+\State $\begin{aligned}\mathrm{PoblInicial}(t) &= \mbox{replica } 30 \mathrm{ solInicial}
+\end{aligned}$
 
 \end{algorithmic}
 \end{algorithm}
@@ -357,9 +357,400 @@ se ha implementado con y sin reemplazamiento (simplemente filtrando
 índices duplicados), y se usa con reemplazamiento cuando el número
 de padres no sería suficiente de otra forma.
 
-* Pseudocódigo de integración en algoritmos meméticos
+* Pseudocódigo de integración de algoritmos meméticos
+El haber escrito el esquema evolutivo independiente de la estrategia
+evolutiva o el operador de cruce concreto que usemos nos permite ahora
+introducir los algoritmos meméticos con una variación pequeña del
+código de esquema evolutivo.  Nótese que la población aquí considerada
+será de 10 en lugar de 30.
+
+\begin{algorithm}
+\small
+\caption{EsquemaMemético (pasoEv : Subrutina)}
+\begin{algorithmic}[1]
+
+\State $pobl \gets \mathrm{poblacionAleatoria}(size = 10)$
+\State $\mathrm{iteraMientras}(evaluaciones > 15000)$
+\State $\qquad \mathrm{Si}\ generacion \% 10 == 0 \mbox{ entonces } pasoM(ev) \mbox{ si no } pasoEv(env)$
+
+\end{algorithmic}
+\end{algorithm}
+
+Aquí, /generación/, que no debe confundirse con el número de
+evaluaciones, cuenta el número de iteraciones del paso evolutivo, ya
+sea generacional o estacionario.
+
+** Versiones del algoritmo memético
+Sobre este esqueleto se integran las distintas versiones del algoritmo
+memético. Todas ellas se empiezan basando en una función que aplica
+búsqueda local sobre los $n$ mejores individuos de la población, pero
+con una probabilidad $p$ sobre cada uno de ellos. Si llamamos a esta
+función $pBusqueda(n,p)$, las tres versiones del algoritmo memético
+buscadas pueden obtenerse como
+
+ 1. $pBusqueda(size(popl),1)$, aplicará búsqueda sobre todos los
+    cromosomas de la población;
+
+ 2. $pBusqueda(size(popl),0.1)$, aplicará búsqueda para cada cromosoma
+    de un conjunto en el que se selecciona cada uno con probabilidad
+    $0.1$;
+
+ 3. $pBusqueda(size(popl)/10,1)$, aplicará búsqueda sobre los $0.1$ mejores
+    cromosomas de la población.
+
+El código de esta función central incrementará el contador de
+evaluaciones según las necesite. Nótese que aunque la búsqueda local
+siempre debe parar cuando se hayan evaluado $2m$ vecinos distintos en
+cada ejecución, donde $m$ es el número de atributos, el número total de
+evaluaciones dependerá de la selección aleatoria de cromosomas y no
+será fijo en general.
+
+\begin{algorithm}
+\small
+\caption{pBusqueda (n : nº mejores, p : probabilidad, popl : Población)}
+\begin{algorithmic}[1]
+
+\State $(noseleccionados , seleccionados) \gets (\mathrm{escogelosNmejores}(n, popl) , \mathrm{resto}(n,popl))$
+\State $nuevos \gets map\ localSearch\ seleccionados$
+\State $\mathrm{return}\ nuevos \cup noseleccionados$
+
+\end{algorithmic}
+\end{algorithm}
+
+Finalmente, esta $pBusqueda$ es la que se usa como implementación
+de $pasoM$, variando los parámetros en cada uno de los casos.
+
 * Procedimiento considerado, manual de usuario
+Al igual que en la primera práctica, se usa *Haskell* cite:haskell98 y
+paralelismo con cite:DataVector. El proceso de validación y generación
+de los resultados se hace reproducible con cite:GNUmake y se encuentra
+en el archivo =makefile=, en el que se declaran las semillas de aleatoriedad
+(=$SEEDn=) que son las que se envían a los distintos algoritmos.
+
+Además de los ejecutables de validación =bin/fivefold= y =bin/scorer=,
+así como los algoritmos de la primera práctica, presentamos los ejecutables
+nuevos de algoritmos genéticos:
+
+ * =bin/Ageca=, implementación del algoritmo genético estacionario con
+   cruce aritmético;
+ * =bin/Ageblx=, implementación del algoritmo genético estacionario con
+   cruce BLX;
+ * =bin/Aggca=, implementación del algoritmo genético generacional con
+   cruce aritmético;
+ * =bin/Aggblx=, implementación del algoritmo genético generacional con
+   cruce BLX;
+
+y los ejecutables de algoritmos meméticos:
+
+ * =bin/AmAll=, implementación del algoritmo memético sobre genético
+   generacional con cruce BLX, aplicando búsqueda cada 10 generaciones
+   sobre todos los los cromosomas (AM-10,1.0); 
+ * =bin/AmProb=, implementación del algoritmo memético sobre genético
+   generacional con cruce BLX, aplicando búsqueda cada 10 generaciones
+   sobre todos los los cromosomas pero con probabilidad 0.1 (AM-10,0.1);
+ * =bin/AmBest=, implementación del algoritmo memético sobre genético
+   generacional con cruce BLX, aplicando búsqueda cada 10 generaciones
+   sobre el 10% de los mejores (AM-10,0.1mej);
+ * =bin/AmBest=, implementación del algoritmo memético sobre genético
+   generacional con cruce BLX, aplicando búsqueda cada 10 generaciones
+   sobre todos los cromosomas, incrementando la frecuencia de
+   mutaciones y cambiando el operador BLX para introducir más
+   diversidad (AM-div); una justificación de este algoritmo adicional
+   se presenta en la sección de experimentos.
+
+Todas las implementaciones reciben como argumento de línea de comandos
+una semilla aleatoria y leen por la entrada estándar un conjunto de
+entrenamiento; acabarán devolviendo una solución por salida estándar.
+
+Para el resto de detalles de ejecución nos referimos a la primera
+práctica.
+
 * Experimentos y análisis de los resultados
+Nuestros algoritmos reciben varios parámetros que fijamos en el
+código. Explícitamente, el tamaño de población en los genéticos es 30,
+mientras que es 10 en los meméticos. La probabilidad de cruce será de
+1 en el estacionario y 0.7 en el generacional (nótese que en el
+generacional usaremos la esperanza matemática). La probabilidad de
+mutación será siempre del 0.001 (en el generacional usaremos de nuevo
+la esperanza matemática). En la mutación, tomamos $\sigma = 0.3$ al igual que
+en la primera práctica y para el BLX tomamos $\alpha = 0.3$. El criterio de parada
+es siempre de 15000 evaluaciones de la función objetivo.
+
+** AGE-CA
+Los resultados de nuestra primera versión de un algoritmo genético son
+comparables con los resultados de la búsqueda local, siendo la única
+diferencia un incremento en tiempo derivado de que, aunque nuestro
+criterio de parada nos sigue asegurando la misma cantidad de
+evaluaciones de la función objetivo, la gestión de la población
+consume ahora mucho más tiempo.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \label{multiprogram}
+  \input{../data/Ageca.tex}
+  \caption{Algoritmo AGE-CA en el problema del APC}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.40]{../data/ageca-parkinsons-best.png}
+\caption{Puntuación del mejor individuo en el tiempo en Parkinsons bajo AGE-CA.}
+\end{figure}
+
+** AGE-BLX
+El cambio a un operador de cruce BLX parece dar mejores
+resultados. Una hipótesis es que la falta de diversidad estaba
+limitando innecesariamente nuestro algoritmo, haciendo mucho más lento
+el saltar de una solución a otra mejor y atascándose innecesariamente
+en extremos locales. Esta hipótesis podemos comprobarla con los
+gráficos que añadimos, que muestran cómo varía la mejor solución
+encontrada conforme avanza el algoritmo. Destacamos que este nuevo
+operador introduce una componente de aleatoriedad y que permite la
+exploración más allá de la recta que incluye a las dos soluciones,
+ambas características que no poseía el cruce aritmético.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Algoritmo AGE-BLX en el problema del APC}
+  \label{multiprogram}
+  \input{../data/Ageblx.tex}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.40]{../data/ageblx-parkinsons-best.png}
+\caption{Puntuación del mejor individuo en el tiempo en Parkinsons bajo AGE-BLX.}
+\end{figure}
+
+En este caso, obtenemos un algoritmo que mejora ligeramente en
+resultados a la búsqueda local, indicando que este es un buen camino
+a seguir.
+
+** AGG-CA
+El cambio a generacional da resultados consistentemente peores que el
+uso de estacionarios. Nuestra hipótesis aquí es que esto esté causado
+porque, al seleccionar una nueva población a cada generación con
+torneos que pueden repetir a los elementos de la élite a cada paso, la
+convergencia sea más rápida a un extremo local de lo que sería
+deseable.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Algoritmo AGG-CA en el problema del APC}
+  \label{multiprogram}
+  \input{../data/Aggca.tex}
+\end{table}
+
+** AGG-BLX
+En la implementación de un algoritmo genético generacional con
+operador de cruce BLX obtenemos resultados ligeramente mejores que con
+su equivalente con el cruce aritmético.  De nuevo el uso de un
+operador de cruce incrementando la posibilidad de exploración mejora
+los resultados. Esta mejora es la que nos lleva a implementar los
+algoritmos meméticos sobre este operador de cruce en lugar de sobre el
+cruce aritmético.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Algoritmo AGG-BLX en el problema del APC}
+  \label{multiprogram}
+  \input{../data/Aggblx.tex}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.40]{../data/aggblx-parkinsons-diversity.png}
+\caption{Diversidad de la población en el tiempo en Parkinsons bajo AGG-BLX.}
+\end{figure}
+
+Confirmamos además que tenemos una gran falta de diversidad en nuestro
+algoritmo, podemos definir una medida de diversidad como la suma de
+distancias entre los distintos individuos.
+
+\[
+\mathrm{diversidad}(Popl) =
+\sum_{a,b \in \mathrm{Popl}} \mathrm{dist(a,b)}.
+\]
+
+** AM-(10,1.0)
+Los algoritmos meméticos representan una importante mejora frente a
+sus contrapartes genéticas. En particular, en este caso implementamos
+un algoritmo memético que cada 10 generaciones aplica búsqueda local
+a toda la población, y que usa el esquema generacional con un operador
+de cruce BLX. La elección de BLX la justificamos en la superioridad que
+ha mostrado en los experimentos anteriores. 
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Algoritmo AM-(10,1.0) en el problema del APC}
+  \label{multiprogram}
+  \input{../data/AmAll.tex}
+\end{table}
+
+En este caso podemos comprobar que una de las causas por las que debe
+estar mejorando el caso genético es debido a que la diversidad se está
+incrementando. Tomaremos esta idea como inspiración para implementar
+una versión propia del algoritmo memético: idealmente nos gustaría poder
+mantener un cierto nivel de diversidad durante la ejecución completa
+del algoritmo.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.40]{../data/amall-parkinsons-diversity.png}
+\caption{Diversidad de la población en el tiempo en Parkinsons bajo AM-(10,1.0).}
+\end{figure}
+
+En cualquier caso, hemos obtenido un algoritmo basado sobre un
+generacional pero con resultados mucho mejores que él. Esto nos
+confirma que aunque los generacionales estaban funcionando de
+manera pobre, el aplicar búsquedas locales que concreten el
+extremo local al que se acerca cada individuo mejora los resultados
+notablemente.
+
+** AM-(10,0.1)
+Esta versión de un algoritmo memético vuelve a utilizar el esquema
+generacional evolutivo y a elegir el operador de cruce BLX. Sin
+embargo, en lugar de aplicar la búsqueda local sobre cada uno de los
+individuos de la población, elegimos de manera aleatoria, con probabilidad
+0.1, si aplicarla sobre cada uno de los individuos.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Algoritmo AM-(10,0.1) en el problema del APC}
+  \label{multiprogram}
+  \input{../data/AmProb.tex}
+\end{table}
+
+Los resultados son ligeramente peores, y aunque no parecen
+suficientemente fuertes como para no atribuirlos a la aleatoriedad,
+podríamos intuir que gastar menos búsquedas locales no está ayudando
+al algoritmo memético.
+
+** AM-(10,0.1mej)
+La última versión del algoritmo memético es similar a la anterior pero
+aplica de manera más selecta la optimización por búsqueda local solo
+en la mejor de las instancias.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Algoritmo AM-(10,0.1mej) en el problema del APC}
+  \label{multiprogram}
+  \input{../data/AmBest.tex}
+\end{table}
+
+Aunque los resultados vuelven a ser una variación de los anteriores,
+es muy reseñable que en este caso, donde solo aplicamos búsqueda local
+sobre el mejor, obtengamos resultados similares. Esto sugiere que si
+necesitáramos reducir las evaluaciones de la función objetivo,
+podríamos intentar reducir el número de individuos en los que se
+aplica la búsqueda local sin incurrir necesariamente en pérdidas
+de calidad importantes.
+
+** AM-div
+Nuestra propuesta para solucionar el problema de la falta de diversidad
+pasa por cambiar el parámetro del cruce BLX a un valor ligeramente mayor
+($\alpha = 0.5$), intentando así que los intervalos en los que se pueden mover
+los valores del cruce sean más amplios; e incrementar hasta 0.01 la posibilidad
+de mutación.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Algoritmo AM-(10,0.1mej) en el problema del APC}
+  \label{multiprogram}
+  \input{../data/AmNew.tex}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.40]{../data/amnew-parkinsons-diversity.png}
+\caption{Diversidad de la población en el tiempo en Parkinsons bajo AM-div.}
+\end{figure}
+
+Hemos obtenido un algoritmo tan bueno como el mejor de los meméticos y
+que incluso lo mejora en el conjunto de datos "Spectf". El valor
+exacto de los dos ajustes de parámetros lo hemos obtenido
+empíricamente buscando que facilitaran mantener una ligera diversidad
+hasta el final de la ejecución; pero una propuesta futura podría ser
+automatizar esta elección de parámetros tras comprobar cómo funciona
+sobre varios conjuntos de datos y usando la medida de diversidad
+propuesta como criterio para la elección.
+
+** Resultados globales y comparación
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Resultados globales en el problema del APC}
+  \label{multiprogram}
+\begin{tabular}{c|c|c|c|c|c|c|c|c|c|c|c|c|}
+\cline{2-13}
+&\multicolumn{4}{|c|}{Ozone} & \multicolumn{4}{|c|}{Parkinsons} & \multicolumn{4}{|c|}{Spectf}\\
+\cline{2-13}
+& clas & red & Agr. & T(s)
+& clas & red & Agr. & T(s)
+& clas & red & Agr. & T(s) \\
+\hline
+\multicolumn{1}{|c|}{1NN}&0.816&0.000&0.408&0.032&0.783&0.000&0.391&0.008&0.774&0.000&0.387&0.016\\
+\multicolumn{1}{|c|}{RELIEF}&0.819&0.014&0.416&0.118&0.794&0.000&0.397&0.024&0.767&0.000&0.383&0.055\\
+\multicolumn{1}{|c|}{BL}&0.628&0.969&0.799&15.354&0.391&0.973&0.682&1.192&0.622&0.954&0.788&9.458\\
+\multicolumn{1}{|c|}{BL2}&0.738&0.800&0.769&13.177&0.655&0.909&0.782&0.898&0.768&0.855&0.811&7.488\\
+\multicolumn{1}{|c|}{AGE-CA}&0.747&0.703&0.725&57.608&0.744&0.764&0.754&16.566&0.802&0.668&0.735&54.469\\
+\multicolumn{1}{|c|}{AGE-BLX}&0.744&0.831&0.787&53.886&0.786&0.882&0.834&17.787&0.768&0.791&0.779&36.351\\
+\multicolumn{1}{|c|}{AGG-CA}&0.738&0.645&0.691&32.838&0.785&0.382&0.583&9.434&0.761&0.627&0.694&30.513\\
+\multicolumn{1}{|c|}{AGG-BLX}&0.763&0.642&0.702&59.889&0.745&0.536&0.641&16.059&0.794&0.605&0.699&53.961\\
+\multicolumn{1}{|c|}{AM-(10,1.0)}&0.769&0.817&0.793&57.391&0.809&0.882&0.845&16.333&0.734&0.791&0.763&57.729\\
+\multicolumn{1}{|c|}{AM-(10,0.1)}&0.775&0.767&0.771&60.870&0.779&0.864&0.821&19.237&0.738&0.805&0.771&53.216\\
+\multicolumn{1}{|c|}{AM-(10,0.1mej)}&0.713&0.786&0.749&59.689&0.798&0.882&0.840&18.029&0.753&0.759&0.756&54.846\\
+\multicolumn{1}{|c|}{AM-div}&0.775&0.811&0.793&63.017&0.729&0.891&0.810&19.188&0.760&0.827&0.794&59.235\\
+\hline
+\end{tabular}
+\end{table}
+
+Aunque los algoritmos de referencia (1NN y RELIEF) han quedado
+claramente superados por todos los algoritmos presentados después,
+las búsquedas locales (en las dos versiones que propusimos) son
+perfectamente comparables e incluso superan en algunos casos a los
+algoritmos genéticos generacionales.  Sin embargo, estos prueban
+su utilidad cuando se mezclan en algoritmos genéticos, que obtienen
+los mejores resultados hasta el momento. Podemos analizar de esta
+situación que la búsqueda local es un buen procedimiento para aplicar
+a un algoritmo que, pese a encontrar buenas soluciones, parece no ser
+capaz de alcanzar un mínimo local consistentemente.
+
+Los algoritmos estacionarios, por otro lado, quizá porque no varían
+la población completa a cada paso y van sustituyendo los hijos por
+los peores de la población, manteniendo a los mejores padres, alcanzan
+resultados mucho mejores. Esto justifica la idea del elitismo en los
+generacionales, y que quizá podríamos reforzarla con más medidas orientadas
+a mantener a los mejores incluso después de ser cruzados.
+
+Finalmente, los algoritmos meméticos sólo han planteado el problema de
+la diversidad, que quitaba utilidad a las últimas iteraciones del
+algoritmo. Sin este problema, son consistentemente sobre todos los
+conjuntos de datos los mejores algoritmos que hemos implementado.
+
+** Conclusiones
+Los algoritmos meméticos son los que mejor han funcionado hasta el
+momento, y además han dado una utilidad a las versiones generacionales
+de los algoritmos genéticos, que sin usar meméticos eran peores incluso
+que nuestra implementación de la búsqueda local (tanto con el operador
+inicial como con el nuevo operador diseñado en la primera práctica).
+
+La importancia de alcanzar equilibrio entre exploración y explotación
+se ha manifestado en los resultados de estas ejecuciones y ha guiado
+los últimos experimentos. Un problema común en los algoritmos ha sido
+la falta de diversidad, algunos pasando demasiado tiempo en un
+conjunto muy pequeño de las soluciones. Las correcciones en esta
+dirección han mejorado los resultados.
+
 * Referencias                                                        :ignore:
 bibliographystyle:alpha
 bibliography:Bibliography.bib

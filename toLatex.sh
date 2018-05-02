@@ -30,6 +30,5 @@ cat > data/$1.tex <<- EOF
 $(cat data/$1.table)
 \hline
 \end{tabular}
-\end{table}
 EOF
 

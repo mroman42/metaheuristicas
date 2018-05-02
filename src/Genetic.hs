@@ -2,6 +2,7 @@ module Genetic where
 
 import Debug.Trace
 
+import Data.List
 import System.Random
 import Control.Monad.Random
 import Control.Monad.Loops
@@ -23,7 +24,9 @@ data Environment = Environment
 -- Toma un operador de cruce como argumento.
 stationaryStep :: (Problem -> Individual -> Individual -> Rand StdGen [Individual])
   -> Problem -> Environment -> Rand StdGen Environment
-stationaryStep cross training (Environment popl step gen _) = trace ("Step: " ++ show step) $ do
+stationaryStep cross training (Environment popl step gen _) = do
+  -- ", size: " ++ show (size popl) ++ " diverse els: " ++ (show . length . nub . pToList) popl
+  
   -- Elige varios padres, que serán 2 ó 4 dependiendo del operador de
   -- cruce que usemos. Específicamente, 2 en BLX y 4 en aritmético. Nótese
   -- que la elección entre 2 o 4 se hace según necesidad con evaluación perezosa.
@@ -32,8 +35,8 @@ stationaryStep cross training (Environment popl step gen _) = trace ("Step: " ++
   -- padres como sean necesarios, lo que dependerá del operador de cruce.
   sons <- take 2 . concat <$> mapM (uncurry (cross training)) (pairing parents)
   mutatedSons <- sequence $ fmap (mutationGenProb training) sons
-  traceM $ "Sons: " ++ show sons
-  traceM $ "Parents: " ++ show parents
+  --traceM $ "Sons: " ++ show sons
+  --traceM $ "Parents: " ++ show parents
   
   -- Genera una nueva población haciendo competir a los hijos.
   let newPopl = replaceBy mutatedSons popl
@@ -47,7 +50,8 @@ stationaryStep cross training (Environment popl step gen _) = trace ("Step: " ++
 -- | Paso evolutivo en el modelo generacional.
 generationalStep :: (Problem -> Individual -> Individual -> Rand StdGen [Individual])
   -> Problem -> Environment -> Rand StdGen Environment
-generationalStep cross training (Environment popl step gen best) = trace ("Popl: " ++ show popl) $ do
+generationalStep cross training (Environment popl step gen best) = do
+  -- traceM $ show gen ++ "," ++ show (diversity popl)
   -- El 70% de la nueva población cruzará. Tomamos el valor de cruces
   -- constante para mantener la esperanza dada por la probabilidad.
   let nCross = quot (size popl * 70) 100
@@ -72,10 +76,39 @@ generationalStep cross training (Environment popl step gen best) = trace ("Popl:
     oddpos [_] = []
     oddpos [] = []
 
+-- | Paso evolutivo en el modelo generacional haciendo 10 veces más mutaciones.
+generationalStep' :: (Problem -> Individual -> Individual -> Rand StdGen [Individual])
+  -> Problem -> Environment -> Rand StdGen Environment
+generationalStep' cross training (Environment popl step gen best) = do
+  -- traceM $ show gen ++ "," ++ show (diversity popl)
+  -- El 70% de la nueva población cruzará. Tomamos el valor de cruces
+  -- constante para mantener la esperanza dada por la probabilidad.
+  let nCross = quot (size popl * 70) 100
+  let nMut = quot (nAttrPopl popl * size popl) 100
+  -- Elige padres que no cruzan y padres que cruzan.  Los segundos son
+  -- reemplazados por sus hijos dependiendo del número de hijos que generen.
+  parentsWtCross <- take nCross               <$> binaryTournamentsWoReplace popl
+  parentsWoCross <- take (size popl - nCross) <$> binaryTournamentsWoReplace popl
+  sons <- concat <$> mapM (uncurry (cross training)) (pairing parentsWtCross)
+  let intPopl = pFromList $ take (size popl) $ parentsWoCross ++ sons ++ oddpos parentsWtCross
+  
+  -- Muta aleatoriamente (0.001% en esperanza) y vuelve a incluir
+  -- al final al mejor de la generación anterior si no estuviera ya en
+  -- la población.
+  newPopl <- replaceWorstByIfNotMember best <$> mutatePopulationN nMut training intPopl
+  return $ Environment newPopl (step + nCross + quot nMut 3) (gen+1) (bestOf newPopl)
+  where
+    pairing (a:b:xs) = (a,b) : pairing xs
+    pairing [a] = [(a,a)]
+    pairing [] = []
+    oddpos (_:a:xs) = a : xs
+    oddpos [_] = []
+    oddpos [] = []
+
 -- | Paso memético genérico
 memeticStep :: Double -> Int -> Problem -> Environment -> Rand StdGen Environment
 memeticStep prob n training env = do
-  traceM $ "mejor: " ++ show (fitness $ bestIndividual env)
+  -- traceM $ "mejor: " ++ show (fitness $ bestIndividual env)
   -- Aplica búsqueda local sobre la población
   (newpopl, evals) <- poplLocalSearchBest prob n training (population env)
   -- Devuelve la nueva población e incrementa el contador de la
@@ -84,9 +117,9 @@ memeticStep prob n training env = do
     {population = newpopl}
     {globalSteps = globalSteps env + evals}
 
--- | Paso memético que aplica búsqueda local sobre los mejores 10 cromosomas.
+-- | Paso memético que aplica búsqueda local sobre los mejores 0.1 cromosomas.
 memeticStepBest :: Problem -> Environment -> Rand StdGen Environment
-memeticStepBest = memeticStep 1 10
+memeticStepBest training env = memeticStep 1 (size (population env) `quot` 10) training env
 
 -- | Paso memético que aplica búsqueda local con probabilidad 0.1
 -- sobre cada cromosoma.
@@ -104,7 +137,7 @@ ag :: (Problem -> Environment -> Rand StdGen Environment)
    -> Problem -> Rand StdGen Solution
 ag evStep training = do
   -- Escoge una población inicial aleatoria.
-  popl <- randomPopulation training
+  popl <- randomPopulation 30 training
   let initialEnvironment = Environment popl 0 0 (bestOf popl)
   
   -- Itera evolutivamente sobre el entorno mientras no supere la cota
@@ -124,8 +157,8 @@ am :: (Problem -> Environment -> Rand StdGen Environment)
    -> (Problem -> Environment -> Rand StdGen Environment)
    -> Problem -> Rand StdGen Solution
 am evStep mStep training = do
-  -- Escoge una población inicial aleatoria.
-  popl <- randomPopulation training
+  -- Escoge una población inicial aleatoria de 10.
+  popl <- randomPopulation 10 training
   let initialEnvironment = Environment popl 0 0 (bestOf popl)
   
   -- Itera evolutivamente sobre el entorno mientras no supere la cota
