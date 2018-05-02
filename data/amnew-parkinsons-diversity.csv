@@ -1,0 +1,29 @@
+You are using an unsupported version of LLVM!
+Currently only 3.9 is supported.
+We will try though...
+You are using an unsupported version of LLVM!
+Currently only 3.9 is supported.
+We will try though...
+You are using an unsupported version of LLVM!
+Currently only 3.9 is supported.
+We will try though...
+You are using an unsupported version of LLVM!
+Currently only 3.9 is supported.
+We will try though...
+You are using an unsupported version of LLVM!
+Currently only 3.9 is supported.
+We will try though...
+You are using an unsupported version of LLVM!
+Currently only 3.9 is supported.
+We will try though...
+
+src/Genetic.hs:5:1: warning: [-Wunused-imports]
+    The import of ‘Data.List’ is redundant
+      except perhaps to import instances from ‘Data.List’
+    To import instances alone, use: import Data.List()
+  |
+5 | import Data.List
+  | ^^^^^^^^^^^^^^^^
+You are using an unsupported version of LLVM!
+Currently only 3.9 is supported.
+We will try though...
