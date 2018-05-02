@@ -3,6 +3,7 @@ module Individual
   , nAttrInd
   , fitness
   , solution
+  , distance
   , toListSolution
   -- Generación aleatoria.
   , randomIndividual
@@ -16,6 +17,8 @@ module Individual
   , arithcross'  
   , blx
   , blx'
+  , blx''
+  , twoint
   )
 where
 
@@ -81,7 +84,7 @@ mutation training a = do
   return $ fromSolution training $ S.adjust (trunc . (+ epsilon)) indx (solution a)
   where
     -- Sigma. Variación de la normal que produce la mutación.
-    sigma = 0.3    
+    sigma = 0.3
     -- Trunca el peso después de mutarlo.
     trunc x
       | x > 1 = 1 
@@ -96,24 +99,32 @@ mutationGenProb training a = do
   
 
 -- | Cruce BLX
-blx :: Problem -> Individual -> Individual -> Rand StdGen Individual
-blx training a b = do
+blx :: Double -> Problem -> Individual -> Individual -> Rand StdGen Individual
+blx alpha training a b = do
   c <- sequence $ S.zipWith blxw (solution a) (solution b)
   return $ fromSolution training c
   where
     blxw :: Weight -> Weight -> Rand StdGen Weight
     blxw x y = getRandomR interval
       where
-        -- Constante alpha que regula la amplitud del intervalo.
-        alpha = 0.3
         -- Intervalo en el que está el resultado de la mutación.
         (cmin,cmax,ii) = (min x y, max x y, max x y - min x y)
         interval = (max 0 (cmin - ii * alpha) , min 1 (cmax + ii * alpha))
 
 -- | Versión general del cruce BLX
 blx' :: Problem -> Individual -> Individual -> Rand StdGen [Individual]
-blx' training a b = replicateM 2 (blx training a b)
-  
+blx' training a b = replicateM 2 (blx 0.3 training a b)
+
+blx'' :: Problem -> Individual -> Individual -> Rand StdGen [Individual]
+blx'' training a b = replicateM 2 (blx 0.5 training a b)
+
+
+-- | Cruce con intervalo.
+twoint :: Problem -> Individual -> Individual -> Rand StdGen [Individual]
+twoint training a b = do
+  u <- blx 0.3 training a b
+  v <- randomIndividual training
+  return [u,v]
 
 -- | Genera un individuo aleatorio.
 randomIndividual :: Problem -> Rand StdGen Individual
@@ -141,3 +152,6 @@ localSearchIn prob n training indv = do
   else
     return (indv, 0)
   
+
+distance :: Individual -> Individual -> Double
+distance a b = sqrt $ sum $ (**2) <$> S.zipWith (-) (solution a) (solution b)

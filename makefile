@@ -94,6 +94,8 @@ bin/AmBest: src/AmBest.hs $(SRC_GEN)
 	$(STK) $^ -o $@ -main-is AmBest
 bin/AmProb: src/AmProb.hs $(SRC_GEN)
 	$(STK) $^ -o $@ -main-is AmProb
+bin/AmNew: src/AmNew.hs $(SRC_GEN)
+	$(STK) $^ -o $@ -main-is AmNew
 
 
 # Describimos todo lo que queremos hacer para cada uno de los algoritmos
@@ -142,7 +144,7 @@ data/$(1).tex: data/ozone-320.arff.$(1).report data/parkinsons.arff.$(1).report 
 	./toLatex.sh $(1)
 endef
 
-$(foreach i,Onenn Relief LocalSearch LocalSearch2 Ageca Ageblx Aggca Aggblx AmAll AmBest AmProb,$(eval $(call VALIDATION,$(i))))
+$(foreach i,Onenn Relief LocalSearch LocalSearch2 Ageca Ageblx Aggca Aggblx AmAll AmBest AmProb AmNew,$(eval $(call VALIDATION,$(i))))
 
 
 

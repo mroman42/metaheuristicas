@@ -3,6 +3,8 @@ module Population
   , size
   , nAttrPopl
   , pFromList
+  , pToList
+  , diversity
   -- Reemplazamiento.
   , replaceWorstByIfNotMember  
   , replaceWorstBy
@@ -21,7 +23,7 @@ module Population
   )
 where
 
-import Debug.Trace
+-- import Debug.Trace
 import qualified Data.Set as T
 import Control.Monad.Random
 import Data.List (nub)
@@ -44,7 +46,7 @@ replaceWorstBy iv = T.deleteMin . T.insert iv
 
 replaceWorstByIfNotMember :: Individual -> Population -> Population
 replaceWorstByIfNotMember iv p
-  | iv == bestOf p = p
+  | iv `elem` T.toList p = p
   | otherwise = replaceWorstBy iv p
 
 -- | Incluye varios individuos en la población y elimina luego los
@@ -78,9 +80,9 @@ binaryTournamentsWtReplace p = do
   return $ map (`T.elemAt` p) zs
 
 
--- Genera una población aleatoria.
-randomPopulation :: Problem -> Rand StdGen Population
-randomPopulation training = T.fromList <$> replicateM 30 (randomIndividual training)
+-- Genera una población aleatoria de un número de individuos.
+randomPopulation :: Int -> Problem -> Rand StdGen Population
+randomPopulation n training = T.fromList <$> replicateM n (randomIndividual training)
 
 -- | Aplica una mutación aleatoria en un individuo cualquiera de toda
 -- la población.
@@ -107,8 +109,14 @@ poplLocalSearchBest prob n training popl = do
 
 
 
+diversity :: Population -> Double
+diversity popl = sum [distance x y | x <- pToList popl, y <- pToList popl]
+
 bestOf :: Population -> Individual
 bestOf = T.findMax
 
 pFromList :: [Individual] -> Population
 pFromList = T.fromList
+
+pToList :: Population -> [Individual]
+pToList = T.toList
