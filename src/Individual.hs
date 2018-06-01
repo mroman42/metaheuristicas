@@ -5,11 +5,13 @@ module Individual
   , solution
   , distance
   , toListSolution
+  , fromSolution
   -- Generación aleatoria.
   , randomIndividual
   -- Operador de mutación.
   , mutation
   , mutationGenProb
+  , strongMutation
   -- Búsqueda local
   , localSearchIn
   -- Operadores de cruce.
@@ -77,26 +79,49 @@ arithcross' :: Problem -> Individual -> Individual -> Rand StdGen [Individual]
 arithcross' training a b = return [arithcross training a b]
 
 -- | Muta una componente aleatoria de un individuo.
-mutation :: Problem -> Individual -> Rand StdGen Individual
-mutation training a = do
+mutation' :: Double -> Problem -> Individual -> Rand StdGen Individual
+mutation' sigma training a = do
   epsilon <- getNormal (0,sigma)
   indx <- getRandomR (0,nAttrInd a-1)  
   return $ fromSolution training $ S.adjust (trunc . (+ epsilon)) indx (solution a)
   where
-    -- Sigma. Variación de la normal que produce la mutación.
-    sigma = 0.3
     -- Trunca el peso después de mutarlo.
     trunc x
       | x > 1 = 1 
       | x < 0 = 0 
       | otherwise = x
 
+mutation :: Problem -> Individual -> Rand StdGen Individual
+mutation = mutation' 0.3
+
 -- | Sobre cada gen, aplicará una mutación aleatoria con probabilidad 0.001.
 mutationGenProb :: Problem -> Individual -> Rand StdGen Individual
 mutationGenProb training a = do
   n <- length . filter (< (0.001 :: Double)) . take (nAttrInd a) <$> getRandomRs (0.0,1.0)
   foldr (<=<) return (replicate n (mutation training)) a
+
+-- | Mutate a component
+mutateComponent :: Double -> Int -> Problem -> Individual -> Rand StdGen Individual
+mutateComponent sigma indx training a = do
+  epsilon <- getNormal (0, sigma)
+  return $ fromSolution training $ S.adjust (trunc . (+ epsilon)) indx (solution a)
+  where
+    -- Trunca el peso después de mutarlo.
+    trunc x
+      | x > 1 = 1 
+      | x < 0 = 0 
+      | otherwise = x
   
+
+-- | Aplica mutaciones sobre un 10% de las características; usa 0.4
+-- como sigma.
+strongMutation :: Problem -> Individual -> Rand StdGen Individual
+strongMutation training a = do
+  let t = div (nAttrInd a) 10
+  indxs <- take t <$> getRandomRs (0, nAttrInd a-1)
+  foldM (flip ($)) a (map (\i -> mutateComponent sigma i training) indxs)
+  where
+    sigma = 0.4
 
 -- | Cruce BLX
 blx :: Double -> Problem -> Individual -> Individual -> Rand StdGen Individual

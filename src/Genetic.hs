@@ -1,8 +1,8 @@
 module Genetic where
 
-import Debug.Trace
+-- import Debug.Trace
 
-import Data.List
+-- import Data.List
 import System.Random
 import Control.Monad.Random
 import Control.Monad.Loops

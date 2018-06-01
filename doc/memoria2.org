@@ -149,7 +149,7 @@ cuidando que sean muestras independientes bajo el mismo generador aleatorio.
 
 \State $\begin{aligned}\mathrm{solInicial}(t) &= \mbox{tomaLos } (\mathrm{nAttr}(t)) \mbox{ primerosDe }\ \mathrm{aleatorioUniforme} (0.0,1.0)
 \end{aligned}$
-\State $\begin{aligned}\mathrm{PoblInicial}(t) &= \mbox{replica } 30 \mathrm{ solInicial}
+\State $\begin{aligned}\mathrm{PoblInicial}(n = 30, t) &= \mbox{replica } n\ \mathrm{solInicial}
 \end{aligned}$
 
 \end{algorithmic}
@@ -202,8 +202,8 @@ hijo.
 ** Cruce BLX
 El cruce BLX sí es no determinista y sí nos permitirá obtener dos
 hijos desde una sola pareja de padres. Nuestro código genera un solo
-hijo y simplemente repite (de nuevo usando mónadas) el procedimiento
-para asegurarse la independencia de los dos hijos.
+hijo y simplemente repite (de nuevo usando internamente la estructura
+de mónadas) el procedimiento para asegurarse la independencia de los dos hijos.
 
 \begin{algorithm}
 \small
@@ -218,15 +218,19 @@ para asegurarse la independencia de los dos hijos.
 \end{algorithmic}
 \end{algorithm}
 
-En nuestro caso prepararemos el código para tratar uniformemente
-los dos cruces distintos, haciendo que cada uno devuelva una lista
-con uno y dos hijos y dejando que cada algoritmo trate estos dos
-casos.
+En nuestro caso, además, prepararemos el código para tratar
+uniformemente los dos operadores de cruce distintos, haciendo que cada
+uno devuelva una lista con uno y dos hijos y dejando que cada
+algoritmo que los trate estos dos casos directamente.
 
 ** Mutación
 La mutación, en su versión más común, procede directamente del
-operador de generación de vecinos de la búsqueda local. En ocasiones
-nos interesará mutar cada gen de un individuo con probabilidad 0.001.
+operador de generación de vecinos de la búsqueda local que
+implementamos en la primera práctica y que simplemente añade una
+cantidad aleatoria a uno de los pesos de la solución. En ocasiones nos
+interesará mutar cada gen de un individuo con probabilidad 0.001 y que
+la simulación de este proceso aleatorio sea precisa; este será el caso
+en el modelo estacionario.
 
 \begin{algorithm}
 \small
@@ -241,7 +245,7 @@ nos interesará mutar cada gen de un individuo con probabilidad 0.001.
 Mientras que en otras ocasiones nos interesará aplicar un número
 fijo de mutaciones aleatorias sobre la población completa en lugar
 de generar un número aleatorio y comprobar si mutamos o no cada uno
-de los genes.
+de los genes. Este será el caso en el modelo generacional.
 
 \begin{algorithm}
 \small
@@ -279,9 +283,9 @@ objetivo, que se almacena con la estructura de datos del algoritmo.
 \end{algorithm}
 
 De esta forma podemos modelar las variantes del algoritmo evolutivo
-uniformemente. Cuando trabajamos gestionando el
-generador aleatorio, podemos escribir en estilo
-imperativo (esto se conoce como un "bloque =do=").
+uniformemente. Cuando trabajamos gestionando el generador aleatorio,
+podemos escribir en estilo imperativo de programación (esto se conoce
+como un "bloque =do=").
 
 ** Esquema de evolución estacionario
 En el esquema de evolución estacionario, cada iteración hará dos
@@ -354,8 +358,9 @@ ordenada que describimos anteriormente.
 
 En cuanto al reemplazamiento en la selección del torneo binario,
 se ha implementado con y sin reemplazamiento (simplemente filtrando
-índices duplicados), y se usa con reemplazamiento cuando el número
-de padres no sería suficiente de otra forma.
+índices duplicados), pero se usa con reemplazamiento en su versión
+más simple tal y como indica la práctica. Esto podría hacer que
+alguna vez tocaran aleatoriamente los dos padres iguales.
 
 * Pseudocódigo de integración de algoritmos meméticos
 El haber escrito el esquema evolutivo independiente de la estrategia
@@ -419,6 +424,33 @@ será fijo en general.
 
 Finalmente, esta $pBusqueda$ es la que se usa como implementación
 de $pasoM$, variando los parámetros en cada uno de los casos.
+
+** Cálculo de diversidad
+En la sección sobre experimentos describiremos una nueva versión del
+algoritmo memético que estará basada en experimentar con la diversidad.
+Lo importante para llegar a esos resultados será el código que calcule
+la diversidad de una población y la muestre por una salida de error que
+nos permita guardarla sin afectar a la ejecución del resto del algoritmo.
+
+Tal y como detallaremos después, la diversidad la mediremos como
+\[
+\mathrm{diversidad}(Popl) =
+\sum_{a,b \in \mathrm{Popl}} \mathrm{dist(a,b)},
+\]
+y quedará implementada en el siguiente código.
+
+\begin{algorithm}
+\small
+\caption{diversidad (popl : Población)}
+\begin{algorithmic}[1]
+
+\State $EuclDistance(a,b) = (\sum_{x \in a, y \in b} (x-y)^2)^{1/2}$
+\State $Diversidad(popl) = \sum_{a,b \in popl} \mathrm{dist}(a,b)$
+\State $ImprimeDiversidad = \mathrm{imprime}(generacionActual + "," + Diversidad(popl))$
+
+\end{algorithmic}
+\end{algorithm}
+
 
 * Procedimiento considerado, manual de usuario
 Al igual que en la primera práctica, se usa *Haskell* cite:haskell98 y
