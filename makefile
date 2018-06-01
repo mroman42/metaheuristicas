@@ -72,6 +72,7 @@ bin/scorer: src/Scorer.hs src/Base.hs src/Input.hs
 # Construcción de ejecutables, lo separamos del resto porque cada uno
 # tiene unas dependencias distintas.
 SRC_GEN=src/Genetic.hs src/Individual.hs src/Base.hs src/Input.hs src/TemplateMain.hs src/LeaveOneOut.hs src/Population.hs
+
 bin/Onenn: src/Onenn.hs src/Base.hs src/Input.hs src/TemplateMain.hs
 	$(STK) $^ -o $@ -main-is Onenn
 bin/Relief: src/Relief.hs src/Base.hs src/Input.hs src/TemplateMain.hs
@@ -96,6 +97,14 @@ bin/AmProb: src/AmProb.hs $(SRC_GEN)
 	$(STK) $^ -o $@ -main-is AmProb
 bin/AmNew: src/AmNew.hs $(SRC_GEN)
 	$(STK) $^ -o $@ -main-is AmNew
+bin/SimulatedAnnealing: src/SimulatedAnnealing.hs $(SRC_GEN)
+	$(STK) $^ -o $@ -main-is SimulatedAnnealing
+bin/ILS: src/ILS.hs $(SRC_GEN)
+	$(STK) $^ -o $@ -main-is ILS
+bin/DERand: src/DERand.hs $(SRC_GEN)
+	$(STK) $^ -o $@ -main-is DERand
+bin/DECurrent: src/DECurrent.hs $(SRC_GEN)
+	$(STK) $^ -o $@ -main-is DECurrent
 
 
 # Describimos todo lo que queremos hacer para cada uno de los algoritmos
@@ -144,7 +153,7 @@ data/$(1).tex: data/ozone-320.arff.$(1).report data/parkinsons.arff.$(1).report 
 	./toLatex.sh $(1)
 endef
 
-$(foreach i,Onenn Relief LocalSearch LocalSearch2 Ageca Ageblx Aggca Aggblx AmAll AmBest AmProb AmNew,$(eval $(call VALIDATION,$(i))))
+$(foreach i,Onenn Relief LocalSearch LocalSearch2 Ageca Ageblx Aggca Aggblx AmAll AmBest AmProb AmNew SimulatedAnnealing ILS DERand DECurrent,$(eval $(call VALIDATION,$(i))))
 
 
 
