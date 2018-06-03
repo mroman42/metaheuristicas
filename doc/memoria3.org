@@ -1,0 +1,701 @@
+#+TITLE: Práctica 3.b
+#+SUBTITLE: Enfriamiento simulado, búsqueda local reiterada y evolución diferencial para el APC.
+#+AUTHOR: Mario Román García
+#+LANGUAGE: es
+
+#+latex_header: \usepackage[spanish]{babel}\decimalpoint
+#+latex_header: \usepackage{amsmath}
+#+latex_header: \usepackage{algorithm} \usepackage{float}
+#+latex_header: \usepackage{tikz}
+#+latex_header: \usepackage{pgfplots}\pgfplotsset{compat=1.15} 
+#+latex_header: \usepackage[noend]{algpseudocode}
+#+latex_header: \usepackage{pdflscape}
+#+latex_header: \usepackage[a4paper]{geometry}
+
+#+OPTIONS: toc:nil tasks:nil
+#+LATEX_HEADER_EXTRA: \usepackage{wallpaper}\ThisULCornerWallPaper{1}{ugrA4.pdf}
+
+* Datos de portada                                                   :ignore:
+# Portada con el número y título de la práctica, el curso académico, el
+# nombre del problema escogido, los algoritmos considerados; el nombre,
+# DNI y dirección e-mail del estudiante, y su grupo y horario de
+# prácticas.
+
+ * DNI: 77145669N
+ * Email: mromang08@correo.ugr.es
+ * Grupo 1 (Lunes de 17:30 a 19:30)
+ * Algoritmos: ES, ILS, DE/rand/1, DE/current-to-best/1
+ * Metaheurísticas, 2017-2018.
+
+* Índice                                                             :ignore:
+#+latex: \newpage
+#+TOC: headlines 2
+#+latex: \newpage
+* Aplicación de algoritmos
+:PROPERTIES:
+:ID:       1260d567-03c8-4b79-9549-4bbfdf0c22e9
+:END:
+# Máximo 4 páginas
+
+** Esquema de representación de soluciones
+Como hemos tratado anteriormente, una solución del problema viene dada
+por un vector de pesos. Nuestra representación específica de una solución
+vendrá dada por una lista de valores reales.
+
+\[
+\left\{ w_i \right\}_{0 \leq i \leq n} = \left( w_1,w_2,\dots,w_n \right)
+\]
+
+Donde $n$ será el número de características que tenga nuestro conjunto
+de datos y $w_i$. En nuestra implementación específica, los pesos
+vendrán dados por un vector contiguo en memoria de valores en coma
+flotante de precisión doble en 64 bits; para facilitar su tratamiento,
+en ciertos algoritmos se traducirán a listas enlazadas, pero su
+interpretación matemática será siempre constante y se describe
+explícitamente en la función objetivo.
+
+** Clasificador 1-NN, función objetivo
+Se define la *distancia con pesos* $\left\{ w_i \right\}$ entre dos vectores $t$ y $s$
+como
+\[
+\mathrm{dist}(w,t,s) = \sum_{i=0}^n w_i(t_i - s_i)^2.
+\]
+Y nuestro clasificador $\mathrm{kNN}$ para unos pesos $\left\{ w_i \right\}$ consiste en devolver
+la clase del punto que minimiza la distancia. Es decir, es una implementación
+de un clasificador 1NN, que para cada instancia devuelve la clase
+de su vecino más cercano. En el caso de la función objetivo, al no
+tener un conjunto de test separado, usamos la técnica de /leave-one-out/.
+
+\begin{algorithm}[H]
+\small
+\caption{Función objetivo (w : Pesos, T : Training)}
+\begin{algorithmic}[1]
+
+\State $\mathrm{Obj}(w,T) = \alpha \cdot \mathrm{precision}(w,T) + (1-\alpha) \mathrm{simplicity}(w)$
+\State $\mathrm{TasaRed}(w) = \mathrm{length} [x < 0.2 \mid x \in w] / \mathrm{length}\ w$
+\State $\mathrm{TasaClas}(w,T) = \sum_{t \in T} (\mathrm{knn}(w,T - t,t) == s.Clase) / \mathrm{length}\ s$
+\State $\mathrm{knn}(w,T,t) = (\mathrm{minimizador}_{t' \in T} (\mathrm{dist^2}(\mathrm{trunca}(w),t',t))).Clase$
+\State $\mathrm{trunca}(w) = \left\{ 0 \mbox{ si } w_i < 0.2;\quad w_i \mbox{ en otro caso }\mid w_i \in w \right\}$
+\end{algorithmic}
+\end{algorithm}
+
+En el código original esta función objetivo aparecerá implementada dos
+veces: una vez para el puntuador de los algoritmos y otra vez para la
+función objetivo. Esta duplicación tiene como ventaja que separa
+completamente las partes de evaluación del código de los algoritmos,
+reduciendo la posibilidad de error. Además,
+
+ * la implementación para evaluación es corta y es más fácil de
+   verificar que está escrita correctamente;
+ * mientras que la implementación de la función objetivo está
+   fuertemente optimizada, usando paralelismo, pero en caso de que
+   tuviera cualquier error, eso no se vería reflejado en las
+   puntuaciones de los algoritmos.
+
+Es importante notar que la formulación original del problema no asume
+que todas las variables sean reales, y en el caso en el que son discretas
+asume una distancia de Hamming que simplemente indica si las dos características
+son exactamente iguales.
+\[\mathrm{dist}(a,b) = \delta_{ab} = \left\{\begin{array}{cl}
+1 & \mbox{ si } a = b \\
+0 & \mbox{ si } a \neq b \\
+\end{array}\right.\]
+
+En los conjuntos de datos que trataremos en este análisis, tenemos de
+hecho que todas las características vienen dadas por reales, y nuestra
+implementación, aunque sería fácilmente extensible, no tratará el otro
+caso explícitamente.
+
+** Generación de soluciones aleatorias
+La generación de una *solución aleatoria inicial* se realiza llamando
+repetidas veces a las librerías del lenguaje cite:MonadRandom. Estas proporcionan
+funciones que nos permiten clacular listas potencialmente infinitas
+de números reales distribuidos uniformemente en el intervalo $[0,1]$.
+Además, usamos replicamos el proceso aleatorio con mónadas para poder generar varios individuos
+cuidando que sean muestras independientes bajo el mismo generador aleatorio.
+
+\begin{algorithm}[H]
+\small
+\caption{Solución inicial (t : Training)}
+\begin{algorithmic}[1]
+
+\State $\begin{aligned}\mathrm{solInicial}(t) &= \mbox{tomaLos } (\mathrm{nAttr}(t)) \mbox{ primerosDe }\ \mathrm{aleatorioUniforme} (0.0,1.0)
+\end{aligned}$
+\State $\begin{aligned}\mathrm{PoblInicial}(n = 30, t) &= \mbox{replica } n\ \mathrm{solInicial}
+\end{aligned}$
+
+\end{algorithmic}
+\end{algorithm}
+
+** Descripción del algoritmo de búsqueda local
+El algoritmo de búsqueda local que usaremos en el algoritmo de
+enfriamiento simulado y en la búsqueda local iterada proviene de
+la implementación previa de la búsqueda local que desarrollamos
+en la primera práctica.
+
+Usamos como operador de generación de vecino la mutación de una
+solución que creamos en la primera práctica, que modifica una
+componente aleatoria tomando un $\varepsilon$ entre $(0,\sigma)$, donde hemos
+determinado $\sigma = 0.3$.
+
+\begin{algorithm}[H]
+\small
+\caption{Generación de vecino (w : Pesos, $\sigma$ : Varianza)}
+\begin{algorithmic}[1]
+
+\State $\varepsilon \gets \mathrm{realAleatorioEntre}(0,\sigma)$
+\State $\mathrm{indx} \gets \mathrm{enteroAleatorioEntre}(0, \mathrm{nAtributos}(a)-1)$
+\State $\mathrm{mutacion}(\varepsilon,i, w) = \mathrm{truncaEntre0y1}\ 
+\mathrm{ajustaIndice}\ \mathrm{indx}\ (+ \varepsilon)\ w$
+\end{algorithmic}
+\end{algorithm}
+
+El método de exploración del entorno consulta si la solución creada es
+mejor que la anterior y, en el caso de que lo sea, cambia la solución
+por ella.  Nótese que en el caso del Enfriamiento Simulado, habrá que
+considerar además la condición de la temperatura que permite cambiar
+la solución por una peor.  Normalmente, esta evaluación del vecino habrá
+además que añadirla al contador de evaluaciones de la función objetivo.
+
+\begin{algorithm}[H]
+\small
+\caption{Paso de búsqueda local (w : solución)}
+\begin{algorithmic}[1]
+
+\State $w' \gets \mathrm{generaVecino}(w,\sigma)$
+\State $w \gets \mathrm{maximizador}_{v \in \{w,w'\}}(\mathrm{evalua}(v))$
+\State $\mathrm{evals} \gets \mathrm{evals} + 1$
+\end{algorithmic}
+\end{algorithm}
+
+* Pseudocódigo de los algoritmos
+** Enfriamiento simulado
+*** Datos del algoritmo                                                                   :ignore:
+Consideramos un esquema de enfriamiento de Cauchy. La temperatura
+inicial queda determinada por la siguiente fórmula.
+\[
+T_0 = \frac{\mu C(S_0)}{-\log(\phi)}
+\]
+
+En esta fórmula, $C(S_0)$ es el coste de la solución inicial que hemos
+generado aleatoriamente. Hemos tomado como valores constantes ambos
+parámetros, siendo tanto $\mu = 0.3$ como $\phi = 0.3$. Además de esta temperatura
+inicial, debemos fijar la temperatura final y lo haremos como $T_f = 0.001$;
+excepto en el caso en el que la temperatura inicial fuera menor que ella,
+donde fijamos por ejemplo $T_f = 0.01T_0$ para prevenir este caso.
+
+El esquema de enfriamiento quedará entonces, con un parámetro $\beta$, determinado
+por la siguiente fórmula.
+\[
+T_{k+1} = \frac{T_k}{1 + \beta T_k}
+\]
+Donde el parámetro $\beta$ dependerá de la temperatura inicial $T_0$, de la temperatura
+final $T_f$, y de un parámetro $M$ que representa el número de enfriamientos que
+se realizarán y que se calcula explícitamente como $M = 15000 / \mathrm{maxVecinos}$,
+redondeado. A su vez, el número máximo de vecinos que se consideran en cualquier
+paso del enfriamiento simulado queda determinado por $\mathrm{maxVecinos} = 10 \mathrm{nAtributos}$.
+El parámetro $\beta$ viene explícitamente dado por la siguiente fórmula.
+\[
+\beta = \frac{T_0 - T_f}{M T_0 T_f}
+\]
+Nótese que se produce el enfriamiento al superar el número de $\mathrm{maxVecinos}$
+explorados o al superar el número máximo de saltos, $\mathrm{maxExitos} = 0.1\mathrm{maxVecinos}$.
+Como observamos tras la experimentación que se generan demasiados vecinos entre
+cada enfriamiento, hemos decidido probar con un número menor de éxitos antes de
+enfriar, dado como $0.01\mathrm{maxVecinos}$.
+
+*** Código                                                                                :ignore:
+El código en sí consta de varias funciones, cada una de ellas ejecutando un
+paso más interno. El más interno de todos es el paso de búsqueda, que funciona
+usando la búsqueda local para generar un vecino nuevo y aceptar dependiendo de
+las condiciones de temperatura. La condición para escoger en un paso determinado
+un vecino peor viene dada por la siguiente fórmula, donde $T$ es la temperatura
+y la $k$ es una constante que nuestro caso tomamos como $1$; nos queda
+\[
+\mathrm{random} \leq \mathrm{exp}\left( \frac{-\Delta f}{kT} \right).
+\]
+La implementación sigue el siguiente pseudocódigo, donde $\mathrm{jump}$ decide si se
+saltará a la siguiente solución.
+
+\begin{algorithm}[H]
+\small
+\caption{Paso de búsqueda en enfriamiento simulado (w : solución)}
+\begin{algorithmic}[1]
+
+\State $w' \gets \mathrm{busquedaLocal}(w,\sigma)$
+\State $\mathrm{diff} = w.fitness - w'.fitness$
+\State $jump \gets (\mathrm{diff} < 0\ ||\ \mathrm{random} < \mathrm{exp}(-\mathrm{diff} / T))$
+\State $\mathrm{update}(\mathrm{evals} + 1)$
+\State $\mathrm{update}(\mathrm{localEvals} + 1)$
+\State $\mathrm{update}(\mathrm{if}\ \mathrm{jump}\ \mathrm{then}\ \mathrm{exitos} + 1)$
+\end{algorithmic}
+\end{algorithm}
+
+El nivel superior es un paso de enfriamiento, este realiza pasos de
+búsqueda pero además controla el enfriamiento tras un determinado
+número de evaluaciones o tras un número determinado de éxitos.
+El paso de enfriamiento aprovecha además para actualizar la mejor
+solución encontrada hasta el momento
+
+\begin{algorithm}[H]
+\small
+\caption{Paso de enfriamiento (w : solución)}
+\begin{algorithmic}[1]
+
+\State Ejecuta pasoDeBusqueda hastaQue ($\mathrm{localevals} > \mathrm{maxVecinos}$\ ||\ exitos > maxExitos)
+\State $\beta \gets (T_0 - T_f)/(m T_0T_f)$
+\State $T_{new} = T / (1 + \beta T)$
+\State if newBest > best then update(best)
+\end{algorithmic}
+\end{algorithm}
+
+Finalmente, el nivel más externo implementa el algoritmo haciendo que
+itere hasta superar el número máximo de evaluaciones permitidas.
+
+\begin{algorithm}[H]
+\small
+\caption{Enfriamiento simulado}
+\begin{algorithmic}[1]
+
+\State $w \gets \mathrm{solucionAleatoria}$
+\State mientras $\mathrm{evals} < 15000$ aplica pasoEnfriamiento
+\State return best
+\end{algorithmic}
+\end{algorithm}
+
+** Búsqueda local iterada
+La implementación de la búsqueda local iterada aprovecha la
+implementación anterior de una búsqueda local y necesita poco código
+sobre él.  El añadido más importante es un operador que provoque una
+mutación fuerte que nos permita seguir iterando la búsqueda local y la
+necesidad de guardar a cada paso la mejor solución encontrada hasta el
+momento para permitirnos volver a ella a la hora de devolverla incluso
+si accedemos a una solución peor durante la búsqueda.
+
+Nuestro operador de mutación fuerte queda implementado como sigue.
+Toma un valor $t = 0.1n$ dando el número de componentes a mutar, luego
+elige aleatoriamente las componentes y mapea las mutaciones sobre
+ellas, cada una aleatoria y usando en este caso $\sigma = 0.4$.
+
+\begin{algorithm}[H]
+\small
+\caption{Mutación fuerte (w : solución)}
+\begin{algorithmic}[1]
+
+\State $\mathrm{t} \gets \mathrm{nAtribs} / 10$
+\State $\mathrm{indices} \gets \mathrm{randoms}(0, \mathrm{nAtribs}-1)$
+\State mapea (mutaComponente ($\sigma = 0.4$)) en indices de $w$
+
+\end{algorithmic}
+\end{algorithm}
+
+La búsqueda local que implementamos en este caso es concretamente la
+siguiente. En el bucle incrementamos el número de evaluaciones (nótese
+que evaluamos la bondad del vecino conforme lo generamos en el paso de
+búsqueda) y elegimos el mejor entre la solución actual y él.
+
+\begin{algorithm}[H]
+\small
+\caption{Búsqueda local (w : solución)}
+\begin{algorithmic}[1]
+
+\State $\mathrm{vecino} \gets \mathrm{pasoBusqueda}$
+\State $\mathrm{evals} \gets \mathrm{evals} + 1)$
+\State $w \gets \max(w,\mathrm{vecino})$
+
+\end{algorithmic}
+\end{algorithm}
+
+El paso de comparación ocurre al final de cada búsqueda local. Compara
+esta solución con la mejor hasta el momento y aplica una mutación ferte
+a la mejor de ellas.
+
+\begin{algorithm}[H]
+\small
+\caption{Paso comparación (w : solución)}
+\begin{algorithmic}[1]
+
+\State $\mathrm{best} \gets \max(\mathrm{best},w)$
+\State $\mathrm{w} \gets \mathrm{mutacionFuerte}(w)$
+\State $w \gets \max(w,\mathrm{vecino})$
+
+\end{algorithmic}
+\end{algorithm}
+
+Finalmente, la implementación del algoritmo final es la encargada de decidir
+que se aplicarán 1000 pasos de búsqueda local antes de aplicar una comparación
+y una mutación fuerte.  Usamos la variable $\mathrm{nbusq}$ para actualizarla cada 1000
+pasos de búsqueda local y empezar una nueva búsqueda.
+
+\begin{algorithm}[H]
+\small
+\caption{Búsqueda local iterada (w : solución)}
+\begin{algorithmic}[1]
+
+\State $w \gets \mathrm{solucionAleatoria}$
+\State mientras ($\mathrm{nbusq} < 15$) aplica 
+\State \quad si ($\mathrm{evals} < 1000$) pasoBusqueda, 
+\State \quad si no, pasoComparacion, $\mathrm{nbusq} \gets +1$, $\mathrm{evals} = 0$
+\end{algorithmic}
+\end{algorithm}
+
+** Evolución diferencial
+El algoritmo de evolución diferencial se basará principalmente en una
+función de cruce que será la que varíe entre las dos versiones del
+algoritmo, dándonos en caso DE/Rand/1 y el caso DE/current-to-best/1.
+Empezamos describiendo la primera de ellas, que escoge tres índices para
+los padres de una nueva solución de forma aleatoria y, también de forma
+aleatoria, elige en cada componente si quedarse con al del hijo o con la
+nueva componente del padre. Tomamos como constantes para el algoritmo los
+dos valores $CR = F = 0.5$, que son los sugeridos en el guion.
+
+\begin{algorithm}[H]
+\small
+\caption{Cruce DE/Rand/1 (w : Solución, pd1,pd2,pd3 : Padre)}
+\begin{algorithmic}[1]
+
+\State mapea cruce w pd1 pd2 pd3
+\State cruce(i,p1,p2,p3) = si random < CR entonces $p1 + F(p2-p3)$ siNo $i$
+\State trunca
+
+\end{algorithmic}
+\end{algorithm}
+
+En el caso de DE/Current-to-best/1, el cambio estará en la función de
+cruce, que ahora pasará a involucrar también a la mejor solución hasta
+el momento.  La elección entre una y otra componente será la componente
+particular que distinga entre ambas versiones.
+
+\begin{algorithm}[H]
+\small
+\caption{Cruce DE/Current/1 (w : Solución, pd,pd2 : Padre, bs : Individuo)}
+\begin{algorithmic}[1]
+
+\State mapea cruce w pd1 pd2 bs
+\State cruce(i,p1,p2,b) = si random < CR entonces $i + F(b-i) + F (p1 - p2)$ siNo $i$
+\State trunca
+
+\end{algorithmic}
+\end{algorithm}
+
+Nótese como en ambos casos se ha usado la recombinación binomial para
+decidir si quedarse con el resultado del cruce o con el peso anterior.
+En el siguiente código implementaremos el paso de evolución diferencial,
+que debe generar padres aleatoriamente, cruzarlos siguiendo los cruces
+anteriores, y terminar haciendo un reemplazamiento uno-a-uno, en el que
+cada individuo pueda ser sustituido por su descendiente si este fuera
+mejor.
+
+\begin{algorithm}[H]
+\small
+\caption{Paso diferencial (popl : Población, best : Individuo)}
+\begin{algorithmic}[1]
+
+\State padres $\gets$ reordena popl aleatoriamente
+\State descendencia $\gets$ mapea cruce sobre (individuos, padres)
+\State nuevapopl $\gets$ mapea max (individuos, descendencia)
+\State evals $\gets$ +1
+
+\end{algorithmic}
+\end{algorithm}
+
+Finalmente, el algoritmo aplica este paso evolutivo hasta que agota el
+número de evaluaciones posibles de la función objetivo. Nótese que podemos
+usar la generación de una población aleatoria que ya propusimos en l
+práctica de algoritmos genéticos.
+
+\begin{algorithm}[H]
+\small
+\caption{Evolución diferencial (popl : Población, best : Individuo)}
+\begin{algorithmic}[1]
+
+\State popl $\gets$ poblacionAleatoria
+\State mientras evals < 15000
+\State \quad aplica pasoDiferencial
+
+\end{algorithmic}
+\end{algorithm}
+
+* Procedimiento considerado, manual de usuario
+Al igual que en la segunda práctica se usa *Haskell* cite:haskell98 y
+paralelismo con cite:DataVector, especialmente para la función
+objetivo. El proceso de validación y generación de los resultados se
+hace reproducible con cite:GNUmake y se encuentra en el archivo
+=makefile=, en el que se declaran las semillas de aleatoriedad
+(=$SEEDn=) que son las que se envían a los distintos algoritmos.
+Volvemos a elegir semillas ~0,1,2,3,4~, pero pueden ser cambiadas
+para su ejecución en el propio archivo =makefile=.
+
+Además de los ejecutables de validación =bin/fivefold= y =bin/scorer=,
+así como los algoritmos de la primera y segunda prácticas, presentamos
+los ejecutables de los nuevos algoritmos:
+
+ * =bin/SimulatedAnnealing=, implementación del enfriamiento simulado
+   con los parámetros fijados en el guion;
+ * =bin/ILS=, implementación de la búsqueda local reiterada con los
+   parámetros y la mutación fijados en el guion;
+ * =bin/DERand=, implementación de la primera variante de la evolución
+   diferencial, que utiliza la fórmula de cruce DE/Rand/1;
+ * =bin/DECurrent=, implementación de la segunda variante de la evolución
+   diferencial, que utiliza la fórmula de cruce DE/current-to-best/1.
+
+Todas las implementaciones reciben como argumento de línea de comandos
+una semilla aleatoria y leen por la entrada estándar un conjunto de
+entrenamiento; acabarán devolviendo una solución por salida estándar.
+
+Para el resto de detalles de ejecución nos referimos a la primera
+práctica.
+
+* Experimentos y análisis de los resultados
+
+** Enfriamiento simulado
+El enfriamiento simulado es un algoritmo basado en trayectorias
+simples con una mejora crucial respecto a la búsqueda local que
+implementamos en prácticas anteriores al incorporar la posibilidad de
+empeorar la solución local bajo ciertas condiciones probabilísticas
+determinadas por el esquema de enfriamiento.  Esperamos que esta
+técnica permita aumentar la diversidad de las soluciones que explora,
+aunque en última instancia, cuando la temperatura sea baja, acabe
+convergiendo a una de ellas de manera similar a como lo haría la
+búsqueda local.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \label{multiprogram}
+  \input{../data/SimulatedAnnealing.tex}
+  \caption{Enfriamiento Simulado en el problema del APC}
+\end{table}
+
+Es importante hacer notar que durante los primeros experimentos en el
+conjunto de datos más pequeño, ~parkinsons~, obtuvimos resultados
+consistentemente peores al aplicar el valor de $\mathrm{maxVecinos}$
+sugerido inicialmente.  Para evitarlo, tomamos la recomendación de
+cambiarlo por un valor menor que acelerara el enfriamiento, obteniendo
+mejores resultados tras el cambio.
+
+Notamos que el algoritmo funciona mejor precisamente en los conjuntos de
+menos dimensionalidad, donde puede haber sido más fácil explorar con 
+operadores de mutación que cambian un número proporcional de componentes
+del vector solución; en cualquier caso y como podrá observarse en la
+comparación final, esta es una tendencia de todos los algoritmos que hemos
+observado hasta el momento que simplemente se acentúa en este caso.
+
+Es llamativo además que, salvo en el primer conjunto de datos, es el
+primer algoritmo que consistentemente incrementa normalmente la tasa
+de clasificación y la tasa de reducción a la par en los distintos
+ejemplos.  Entendemos que el ser una trayectoria simple bajo el
+esquema de enfriamiento, que en las últimas fases será similar a una
+búsqueda local sobre un entorno reducido, hace que acabe acercándose
+normalmente a un óptimo local donde ambas cantidades deben haber sido
+optimizadas igualmente al haber tomado $\alpha = 0.5$.
+
+** Búsqueda local iterativa
+La búsqueda local iterativa es un algoritmo basado en trayectorias
+múltiples.  En este caso no es preocupante, como era en los
+anteriores, la posibilidad de que una búsqueda local quede atascada al
+principio en un óptimo local; pero sigue siendo posible que las
+mutaciones que aplicamos no sean lo suficientemente fuertes como para
+evitar alejar lo suficiente a nuestra solución.  Además, las búsquedas
+locales se pueden ver interrumpidas cada cierto número de pasos para
+aplicar una mutación fuerte que las aleje del óptimo local que podrían
+estar persiguiendo sin haber convergido aún.  Un estudio de diversidad
+y convergencia similar al que realizamos en la práctica anterior con
+los algoritmos genéticos podría ser útil para determinar si este es el
+caso.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \label{multiprogram}
+  \input{../data/ILS.tex}
+  \caption{Búsqueda local iterativa en el problema del APC}
+\end{table}
+
+Notamos finalmente que debe existir alguna zona del espacio de
+búsqueda en el conjunto de datos ~parkinsons~ cercana a varios óptimos
+locales donde el algoritmo se queda alrededor del valor ~0.909~ en la
+tasa de reducción.  Descartamos que sea un error concreto del algoritmo
+porque es un comportamiento que se ha repetido ya en otros algoritmos
+con código independiente al suyo.
+
+** Evolución diferencial
+Los dos últimos algoritmos son ejemplos de búsqueda evolutiva y más
+similares a los algoritmos genéticos anteriores. Volvemos en este caso
+a tener una población en la que explotaremos la bondad de algunas
+soluciones, escogidas aleatoriamente o ordenadamente, para generar nuevas
+soluciones que aprovechen componentes suyas. 
+
+Al aplicar la primera vertiente del algoritmo, DE/Rand/1, obtenemos
+unos resultados sorprendentemente buenos y además mucho menos
+variables entre las distintas ejecuciones y conjuntos de datos que los
+obtenidos en los algoritmos anteriores.  La búsqueda evolutiva nos
+está permitiendo usar la diversidad que introducían los algoritmos
+genéticos de forma más controlada que ellos al usar tres elementos de
+la población para añadir un componente de explotación a la búsqueda.
+Estos algoritmos se han alejado de la bioinspiración que tenían los
+originales, pero nos permiten introducir muchas variantes (cambiando
+el número de padres, probando nuevos operadores de cruce o modelos de
+recombinación) que además nos pueden servir para adaptarlos al
+problema.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \label{multiprogram}
+  \input{../data/DERand.tex}
+  \caption{Evolución diferencial DE/Rand/1 en el problema del APC}
+\end{table}
+
+La segunda vertiente del algoritmo utiliza explícitamente a cada paso
+el mejor individuo de la población.  Debemos tener en cuenta que
+DE/Current-to-best/1 está usando más información de la que tenemos
+disponible en la propia población y haciendo tender a las soluciones
+hacia la mejor de ellas.  Esto puede estar haciendo que la
+convergencia de la población en su conjunto sea más rápida y que la
+población sea mucho menos diversa.  Quizá esto explique los resultados
+que estamos obteniendo en este segundo caso, que aunque son
+ligeramente peores que en el caso anterior, consiguen en casos
+concretos mejorar nuestras mejores soluciones hasta el momento.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \label{multiprogram}
+  \input{../data/DECurrent.tex}
+  \caption{Evolución diferencial DE/Rand/1 en el problema del APC}
+\end{table}
+
+En los dos casos, la información específica del problema que estamos
+usando es la estructura de espacio vectorial que poseen las soluciones
+para aplicar los operadores de cruce y la asunción implícita de
+continuidad para poder trabajar sabiendo que podemos tomar componentes
+de las soluciones mejores y que probablemente mejoren nuestra
+solución. Asumimos en la forma que construimos las soluciones que las
+distintas componentes son independientes para poder mezclar
+componentes de varios individuos en uno solo durante el cruce.
+
+Una vía interesante sería la de probar distintos valores para las
+constantes $CR$ y $F$ del algoritmo, que han funcionado muy bien hasta
+el momento pero cuyo valor podría ser crucial para la ejecución.
+
+** Resultados globales y comparación
+Comparamos ahora los resultados con todos los resultados obtenidos por
+los algoritmos de referencia en las prácticas anteriores. Nos parece
+aquí interesante considerar primero la comparación entre la búsqueda
+local y el enfriamiento simulado, siendo ambos algoritmos de
+trayectorias simples; nótese que obtienen resultados aproximadamente
+iguales en los conjuntos de datos más grandes, a pesar de que el
+enfriamiento simulado suele aprovechar mejor la tasa de reducción, y
+hay una mejora del enfriamiento simulado en el conjunto ~parkinsons~.
+Podríamos atribuir este comportamiento al hecho de que hay en el
+segundo un componente que nos permite explorar en ocasiones posibles
+mejoras de la tasa de reducción, a pesar de que en ocasiones lo desvíe
+del óptimo local.
+
+Ambos obtienen peores resultados que la búsqueda local iterada, donde
+podemos comprobar que en el caso de nuestros problemas, usar varias
+trayectorias es más interesante que una sola. Si atendemos al estudio
+de la convergencia que realizamos en la práctica anterior para
+algoritmos genéticos, pudimos observar que la convergencia prematura
+era un problema común, y los algoritmos de trayectorias múltiples
+pueden estar ayudando a solventarlo.  La búsqueda local iterada es,
+como era esperable, consistentemente mejor que la búsqeuda local,
+lo que atribuimos a este comportamiento de trayectorias múltiples.
+
+Los mejores algoritmos en cualquier caso son los basados en búsqueda
+evolutiva, que usan de nuevo poblaciones de soluciones y que parecen
+no sufrir este problema de convergencia prematura que tenían los
+demás.  Son también algoritmos en los que hay implícita mucha
+información del problema, tanto en la estructura de espacio vectorial,
+como en el cruce que modifica vectores enteros y en la independencia
+entre componentes del vector solución.
+
+También resaltamos que el único algoritmo de referencia que está a la
+altura de una comparación de este tipo es la búsqueda local. Los
+algoritmos greedy iniciales están muy lejos de resultados obtenidos al
+aplicar ideas más complejas.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Resultados globales en el problema del APC}
+  \label{multiprogram}
+\begin{tabular}{c|c|c|c|c|c|c|c|c|c|c|c|c|}
+\cline{2-13}
+&\multicolumn{4}{|c|}{Ozone} & \multicolumn{4}{|c|}{Parkinsons} & \multicolumn{4}{|c|}{Spectf}\\
+\cline{2-13}
+& clas & red & Agr. & T(s)
+& clas & red & Agr. & T(s)
+& clas & red & Agr. & T(s) \\
+\hline
+\multicolumn{1}{|c|}{1NN}&0.816&0.000&0.408&0.032&0.783&0.000&0.391&0.008&0.774&0.000&0.387&0.016\\
+\multicolumn{1}{|c|}{RELIEF}&0.819&0.014&0.416&0.118&0.794&0.000&0.397&0.024&0.767&0.000&0.383&0.055\\
+\multicolumn{1}{|c|}{BL}&0.628&0.969&0.799&15.354&0.391&0.973&0.682&1.192&0.622&0.954&0.788&9.458\\
+\multicolumn{1}{|c|}{ES}&0.697&0.855&0.776&47.194&0.816&0.900&0.858&16.600&0.767&0.782&0.774&51.138\\
+\multicolumn{1}{|c|}{ILS}&0.741&0.864&0.802&47.625&0.734&0.909&0.822&15.759&0.749&0.873&0.811&49.614\\
+\multicolumn{1}{|c|}{DERand}&0.734&0.923&0.828&53.101&0.746&0.909&0.827&15.736&0.760&0.923&0.841&47.921\\
+\multicolumn{1}{|c|}{DECurrent}&0.737&0.711&0.724&57.012&0.845&0.827&0.836&15.440&0.772&0.741&0.757&49.440\\
+\hline
+\end{tabular}
+\end{table}
+
+Finalmente presentamos la tabla completa de resultados de todos los
+algoritmos implementados.  Sobre ella podemos notar por ejemplo un
+fenómeno esperable del hecho de que el criterio de parada sea el
+número de evaluaciones de la función objetivo y que sea constante: los
+tiempos son aproximadamente iguales entre algoritmos, rondando el
+minuto en el conjunto de datos más grande. Las pequeñas variaciones
+pueden ser atribuidas al tiempo que tardan los algoritmos en organizar
+la población o aplicar cruces y mutaciones, además de detalles de la
+carga del procesador al paralelizar.
+
+\begin{table}[!ht]
+\scriptsize
+\centering
+  \caption{Resultados globales en el problema del APC}
+  \label{multiprogram}
+\begin{tabular}{c|c|c|c|c|c|c|c|c|c|c|c|c|}
+\cline{2-13}
+&\multicolumn{4}{|c|}{Ozone} & \multicolumn{4}{|c|}{Parkinsons} & \multicolumn{4}{|c|}{Spectf}\\
+\cline{2-13}
+& clas & red & Agr. & T(s)
+& clas & red & Agr. & T(s)
+& clas & red & Agr. & T(s) \\
+\hline
+\multicolumn{1}{|c|}{1NN}&0.816&0.000&0.408&0.032&0.783&0.000&0.391&0.008&0.774&0.000&0.387&0.016\\
+\multicolumn{1}{|c|}{RELIEF}&0.819&0.014&0.416&0.118&0.794&0.000&0.397&0.024&0.767&0.000&0.383&0.055\\
+\multicolumn{1}{|c|}{BL}&0.628&0.969&0.799&15.354&0.391&0.973&0.682&1.192&0.622&0.954&0.788&9.458\\
+\multicolumn{1}{|c|}{BL2}&0.738&0.800&0.769&13.177&0.655&0.909&0.782&0.898&0.768&0.855&0.811&7.488\\
+\multicolumn{1}{|c|}{AGE-CA}&0.747&0.703&0.725&57.608&0.744&0.764&0.754&16.566&0.802&0.668&0.735&54.469\\
+\multicolumn{1}{|c|}{AGE-BLX}&0.744&0.831&0.787&53.886&0.786&0.882&0.834&17.787&0.768&0.791&0.779&36.351\\
+\multicolumn{1}{|c|}{AGG-CA}&0.738&0.645&0.691&32.838&0.785&0.382&0.583&9.434&0.761&0.627&0.694&30.513\\
+\multicolumn{1}{|c|}{AGG-BLX}&0.763&0.642&0.702&59.889&0.745&0.536&0.641&16.059&0.794&0.605&0.699&53.961\\
+\multicolumn{1}{|c|}{AM-(10,1.0)}&0.769&0.817&0.793&57.391&0.809&0.882&0.845&16.333&0.734&0.791&0.763&57.729\\
+\multicolumn{1}{|c|}{AM-(10,0.1)}&0.775&0.767&0.771&60.870&0.779&0.864&0.821&19.237&0.738&0.805&0.771&53.216\\
+\multicolumn{1}{|c|}{AM-(10,0.1mej)}&0.713&0.786&0.749&59.689&0.798&0.882&0.840&18.029&0.753&0.759&0.756&54.846\\
+\multicolumn{1}{|c|}{AM-div}&0.775&0.811&0.793&63.017&0.729&0.891&0.810&19.188&0.760&0.827&0.794&59.235\\
+\multicolumn{1}{|c|}{ES}&0.697&0.855&0.776&47.194&0.816&0.900&0.858&16.600&0.767&0.782&0.774&51.138\\
+\multicolumn{1}{|c|}{ILS}&0.741&0.864&0.802&47.625&0.734&0.909&0.822&15.759&0.749&0.873&0.811&49.614\\
+\multicolumn{1}{|c|}{DERand}&0.734&0.923&0.828&53.101&0.746&0.909&0.827&15.736&0.760&0.923&0.841&47.921\\
+\multicolumn{1}{|c|}{DECurrent}&0.737&0.711&0.724&57.012&0.845&0.827&0.836&15.440&0.772&0.741&0.757&49.440\\
+\hline
+\end{tabular}
+\end{table}
+
+El algoritmo que ha dado los mejores resultados una vez implementado
+es la evolución diferencial DE/Rand/1.  Es importante hacer notar que
+ha sido además uno de los menos complejos en su implementación y
+conceptualmente una vez proporcionado el pseudocódigo de los guiones
+de prácticas.  Su elemento más complejo y probablemente más
+significativo a la hora de obtener buenos resultados es el operador de
+cruce, con el que podrían probarse más variaciones además de las dos
+estudiadas.  Es comparable con los genéticos, que han obtenido también
+buenos resultados, pero que no usaban los operadores de cruce que
+proporciona la evolución diferencial y que aprovechan mejor la estructura
+del espacio.
+
+** TODO Conclusiones
+* Referencias                                                                               :ignore:
+bibliographystyle:alpha
+bibliography:Bibliography.bib 
