@@ -22,7 +22,7 @@
 # DNI y dirección e-mail del estudiante, y su grupo y horario de
 # prácticas.
 
- * DNI: ***REMOVED***
+ * DNI: 77145669N
  * Email: mromang08@correo.ugr.es
  * Grupo 1 (Lunes de 17:30 a 19:30)
  * Algoritmos: AGE-{BLX,CA}, AGG-{BLX,CA}, AM-{10,0.1,mej}.
