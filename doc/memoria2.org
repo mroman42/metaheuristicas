@@ -451,7 +451,6 @@ y quedará implementada en el siguiente código.
 \end{algorithmic}
 \end{algorithm}
 
-
 * Procedimiento considerado, manual de usuario
 Al igual que en la primera práctica, se usa *Haskell* cite:haskell98 y
 paralelismo con cite:DataVector. El proceso de validación y generación
@@ -783,6 +782,6 @@ la falta de diversidad, algunos pasando demasiado tiempo en un
 conjunto muy pequeño de las soluciones. Las correcciones en esta
 dirección han mejorado los resultados.
 
-* Referencias                                                        :ignore:
+* Referencias                                                                               :ignore:
 bibliographystyle:alpha
 bibliography:Bibliography.bib

@@ -39,14 +39,14 @@ initialEnv training = do
 
 -- | Crossover from three parents and a base individual in the Random case.
 crossoverRand :: Problem -> Individual -> Individual -> Individual -> Individual -> Rand StdGen Individual
-crossoverRand training indv parent1 parent2 parent3 =
+crossoverRand training indv parent1 parent2 bests =
   fromSolution training <$>
     sequence (
       S.zipWith4 cross
         (solution indv)
         (solution parent1)
         (solution parent2)
-        (solution parent3))
+        (solution bests))
   where
     -- Trunca el peso entre 0 y 1.
     trunc :: Weight -> Weight
